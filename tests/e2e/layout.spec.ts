@@ -1,44 +1,27 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Layout & Ad Slots', () => {
-  test('all three ad slots render at desktop viewport', async ({ page }) => {
+test.describe('Layout', () => {
+  test('core layout renders on desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
 
-    // Top banner
-    const topBanner = page.locator('[data-slot="top-banner"]');
-    await expect(topBanner).toBeVisible();
-    await expect(topBanner).toContainText('[Advertisement]');
-    await expect(topBanner).toContainText('728');
-    await expect(topBanner).toContainText('90');
-
-    // Sidebar
-    const sidebar = page.locator('[data-slot="sidebar"]');
-    await expect(sidebar).toBeVisible();
-    await expect(sidebar).toContainText('[Advertisement]');
-    await expect(sidebar).toContainText('300');
-    await expect(sidebar).toContainText('600');
-
-    // Bottom banner
-    const bottomBanner = page.locator('[data-slot="bottom-banner"]');
-    await expect(bottomBanner).toBeVisible();
-    await expect(bottomBanner).toContainText('[Advertisement]');
+    await expect(page.locator('.site-header h1')).toContainText('Offline Image Converter');
+    await expect(page.locator('.converter-col')).toBeVisible();
+    await expect(page.locator('.drop-zone')).toBeVisible();
+    await expect(page.locator('.site-footer')).toContainText('Files never leave your device');
   });
 
-  test('sidebar ad is hidden at mobile viewport', async ({ page }) => {
+  test('core layout renders on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto('/');
 
-    // Top banner still visible
-    const topBanner = page.locator('[data-slot="top-banner"]');
-    await expect(topBanner).toBeVisible();
+    await expect(page.locator('.site-header h1')).toBeVisible();
+    await expect(page.locator('.drop-zone')).toBeVisible();
+    await expect(page.locator('.site-footer')).toBeVisible();
+  });
 
-    // Sidebar hidden
-    const sidebar = page.locator('[data-slot="sidebar"]');
-    await expect(sidebar).toBeHidden();
-
-    // Bottom banner still visible
-    const bottomBanner = page.locator('[data-slot="bottom-banner"]');
-    await expect(bottomBanner).toBeVisible();
+  test('no ad slots in DOM', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.ad-slot')).toHaveCount(0);
   });
 });
