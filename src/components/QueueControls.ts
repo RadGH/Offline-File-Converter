@@ -26,7 +26,13 @@ export function createQueueControls(
   startPauseBtn.type = 'button';
   startPauseBtn.className = 'queue-controls__start-pause';
 
+  const shortcutHint = document.createElement('span');
+  shortcutHint.className = 'queue-controls__shortcut-hint';
+  shortcutHint.setAttribute('aria-hidden', 'true');
+  shortcutHint.textContent = 'Space to start/pause';
+
   statusBar.appendChild(counts);
+  statusBar.appendChild(shortcutHint);
   statusBar.appendChild(startPauseBtn);
 
   // ── Concurrency section ───────────────────────────────────────────────────

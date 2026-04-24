@@ -1,8 +1,25 @@
-import type { QueueItem as QueueItemData } from '@/lib/queue/store';
+import type { QueueItem as QueueItemData, OutputFormat } from '@/lib/queue/store';
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { formatBytes } from '@/lib/utils/format-bytes';
 import { createSettingsPanel } from '@/components/SettingsPanel';
+
+/** Format factors for estimated output size heuristic. */
+const FORMAT_FACTOR: Record<OutputFormat, number> = {
+  jpeg: 0.55,
+  webp: 0.45,
+  avif: 0.25,
+  png: 0.70,
+  gif: 1.00,
+};
+
+function estimatedOutputSize(item: QueueItemData): number | null {
+  if (!item.originalDimensions) return null;
+  if (item.status !== 'waiting') return null;
+  const factor = FORMAT_FACTOR[item.settings.format] ?? 0.55;
+  const q = item.settings.quality / 100;
+  return Math.round(item.file.size * q * factor);
+}
 
 const STATUS_LABELS: Record<string, string> = {
   waiting: 'Waiting',
@@ -60,8 +77,13 @@ export function createQueueItemEl(
     const saved = formatSavedPct(item.file.size, item.result.outSize);
     meta.textContent = `${formatBytes(item.file.size)} → ${formatBytes(item.result.outSize)}${saved ? ` (${saved})` : ''}`;
   } else {
-    meta.textContent = formatBytes(item.file.size);
+    const estSize = estimatedOutputSize(item);
+    const estText = estSize !== null ? ` · ≈ ${formatBytes(estSize)} expected` : '';
+    meta.textContent = formatBytes(item.file.size) + estText;
   }
+
+  // Estimate span — hidden by CSS class; code stays for easy re-enable
+  meta.classList.add('estimate');
 
   info.appendChild(name);
   info.appendChild(meta);
@@ -70,6 +92,11 @@ export function createQueueItemEl(
   const progressBar = document.createElement('div');
   progressBar.className = 'queue-item__progress-bar';
   progressBar.style.display = item.status === 'processing' ? '' : 'none';
+  progressBar.setAttribute('role', 'progressbar');
+  progressBar.setAttribute('aria-valuemin', '0');
+  progressBar.setAttribute('aria-valuemax', '100');
+  progressBar.setAttribute('aria-valuenow', String(item.progress));
+  progressBar.setAttribute('aria-label', `Conversion progress for ${item.file.name}`);
 
   const progressFill = document.createElement('div');
   progressFill.className = 'queue-item__progress-fill';
@@ -149,10 +176,12 @@ export function createQueueItemEl(
   }
 
   // Expand/collapse chevron button
+  const settingsPanelId = `settings-panel-${item.id}`;
   const expandBtn = document.createElement('button');
   expandBtn.type = 'button';
   expandBtn.className = 'queue-item__expand';
   expandBtn.setAttribute('aria-label', `Toggle settings for ${item.file.name}`);
+  expandBtn.setAttribute('aria-controls', settingsPanelId);
 
   const isExpanded = expandedState.get(item.id) ?? false;
   expandBtn.setAttribute('aria-expanded', String(isExpanded));
@@ -189,6 +218,7 @@ export function createQueueItemEl(
     if (expanded) {
       if (!settingsPanel) {
         settingsPanel = createSettingsPanel(store, item.id);
+        settingsPanel.id = settingsPanelId;
         wrapper.appendChild(settingsPanel);
       }
       settingsPanel.style.display = '';
