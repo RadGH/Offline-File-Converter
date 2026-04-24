@@ -30,6 +30,31 @@ const STATUS_LABELS: Record<string, string> = {
 /** Tracks which items have their compare panel open. */
 const compareOpen = new Map<string, boolean>();
 
+/** Blob URLs for thumbnails, keyed by item id. Created on first render and
+ *  reused across re-renders so rapid store updates (e.g. progress ticks)
+ *  don't churn URLs and cause net::ERR_FILE_NOT_FOUND on in-flight loads. */
+const thumbUrlCache = new Map<string, string>();
+
+function getOrCreateThumbUrl(item: QueueItemData): string {
+  let url = thumbUrlCache.get(item.id);
+  if (!url) {
+    url = URL.createObjectURL(item.file);
+    thumbUrlCache.set(item.id, url);
+  }
+  return url;
+}
+
+/** Called by FileQueue when an item is removed from the store — revokes its
+ *  cached blob URL and drops companion state. */
+export function disposeQueueItem(itemId: string): void {
+  const url = thumbUrlCache.get(itemId);
+  if (url) {
+    URL.revokeObjectURL(url);
+    thumbUrlCache.delete(itemId);
+  }
+  compareOpen.delete(itemId);
+}
+
 /** Integer percent saved; negative if larger. */
 function savedPct(originalSize: number, outSize: number): number {
   if (originalSize === 0) return 0;
@@ -51,7 +76,7 @@ export function createQueueItemEl(
   const thumb = document.createElement('img');
   thumb.className = 'queue-item__thumb';
   thumb.alt = item.file.name;
-  const originalUrl = URL.createObjectURL(item.file);
+  const originalUrl = getOrCreateThumbUrl(item);
   thumb.src = originalUrl;
 
   const info = document.createElement('div');
@@ -211,8 +236,8 @@ export function createQueueItemEl(
   removeBtn.setAttribute('aria-label', `Remove ${item.file.name}`);
   removeBtn.textContent = '×';
   removeBtn.addEventListener('click', () => {
-    URL.revokeObjectURL(originalUrl);
-    compareOpen.delete(item.id);
+    // The item's blob URL and companion state are revoked by FileQueue when
+    // it notices the item has dropped out of the store.
     store.removeFile(item.id);
   });
 
@@ -228,15 +253,6 @@ export function createQueueItemEl(
 
   // Restore compare-panel open state across re-renders
   if (compareOpen.get(item.id)) setCompareOpen(true);
-
-  // Cleanup object URL when wrapper leaves the DOM
-  const observer = new MutationObserver(() => {
-    if (!document.contains(wrapper)) {
-      URL.revokeObjectURL(originalUrl);
-      observer.disconnect();
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
 
   return wrapper;
 }

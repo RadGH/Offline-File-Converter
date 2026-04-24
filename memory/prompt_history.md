@@ -154,3 +154,16 @@ I would like to upgrade it to have an upscale option using a low filesize upscal
 
 The upscale feature I can't tell if it works. It looks basically identical to the default scaling. A transparent PNG of pixel art becomes blurry. Is it working? I downloaded the model and checked the box. The filesize is the same when I try normal and then upscale checked. I feel like it isn't applied. Also if you check the upscale box it should be remembered if you refresh the page (as long as the model is present).
 
+## 2026-04-24 09:58
+
+With upscale active It now gets stuck at the start and gives some errors:
+
+GET blob:https://convert.radgh.com/90770ba7-6725-4645-b9be-c733f07078b6 net::ERR_FILE_NOT_FOUND
+blob:https://convert…b9fb-ed8529c2b8b7:1 
+ GET blob:https://convert.radgh.com/ce73a314-1ec0-4da7-b9fb-ed8529c2b8b7 net::ERR_FILE_NOT_FOUND
+blob:https://convert…aa64-91b26293a6f6:1 
+ GET blob:https://convert.radgh.com/97f7fefd-a561-475c-aa64-91b26293a6f6 net::ERR_FILE_NOT_FOUND
+ort-wasm-simd-threaded.jsep.mjs:68 2026-04-24 09:58:06.450498 [W:onnxruntime:, session_state.cc:1327 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+
+ort-wasm-simd-threaded.jsep.mjs:68 2026-04-24 09:58:06.452898 [W:onnxruntime:, session_state.cc:1329 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
+
