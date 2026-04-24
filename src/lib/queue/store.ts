@@ -125,10 +125,32 @@ const DEFAULT_QUEUE_SETTINGS: QueueSettings = {
   autoStart: true,
 };
 
+const LS_KEY_DEFAULTS = 'converter.globalDefaults.v1';
+
+function loadPersistedDefaults(): PerFileSettings {
+  try {
+    const raw = localStorage.getItem(LS_KEY_DEFAULTS);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const parsed = JSON.parse(raw) as Partial<PerFileSettings>;
+    // Merge onto defaults so added fields in new versions don't break.
+    return { ...DEFAULT_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function persistDefaults(defaults: PerFileSettings): void {
+  try {
+    localStorage.setItem(LS_KEY_DEFAULTS, JSON.stringify(defaults));
+  } catch {
+    // Ignore quota / private-mode errors.
+  }
+}
+
 export function createQueueStore(): QueueStore {
   let state: QueueState = {
     items: [],
-    globalDefaults: { ...DEFAULT_SETTINGS },
+    globalDefaults: loadPersistedDefaults(),
     queueSettings: { ...DEFAULT_QUEUE_SETTINGS },
     modelStatus: { kind: 'unknown' },
     upscaleCapability: 'unknown',
@@ -188,6 +210,7 @@ export function createQueueStore(): QueueStore {
       ...state,
       globalDefaults: { ...state.globalDefaults, ...patch },
     };
+    persistDefaults(state.globalDefaults);
     notify();
   }
 

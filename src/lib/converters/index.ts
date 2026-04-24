@@ -1,7 +1,6 @@
 import type { ConversionInput, ConversionResult, ConvertOptions } from './types';
 import { detectInputFormat } from '@/lib/utils/mime';
 import { convertViaCanvas } from './canvas';
-import { applyResize } from '@/lib/utils/resize';
 
 export type { ConversionInput, ConversionResult, ConvertOptions };
 
@@ -68,45 +67,25 @@ export async function convert(
   }
 
   // ── Optional AI upscale step (before resize+encode) ──────────────────────────
-  if (
-    settings.upscale &&
-    options?.upscaleServices?.isModelReady() &&
-    originalDimensions
-  ) {
-    const targetDims = applyResize(originalDimensions, {
-      width: settings.width,
-      height: settings.height,
-      maintainAspect: settings.maintainAspect,
-    });
-
-    const willEnlarge =
-      targetDims.width > originalDimensions.width ||
-      targetDims.height > originalDimensions.height;
-
-    if (willEnlarge) {
-      // Choose scale: use 4x if either target dimension is >= 3x original,
-      // otherwise 2x (avoids blowing up memory on modest enlargements).
-      const scaleRatioW = targetDims.width / originalDimensions.width;
-      const scaleRatioH = targetDims.height / originalDimensions.height;
-      const maxRatio = Math.max(scaleRatioW, scaleRatioH);
-      const factor: 2 | 4 = maxRatio >= 3 ? 4 : 2;
-
-      try {
-        onProgress?.(5);
-        const upscaledBlob = await options.upscaleServices.runUpscale(file, factor);
-        // Replace file with upscaled result; update originalDimensions so the
-        // subsequent resize step works from the new (larger) source size.
-        file = new File([upscaledBlob], file.name, { type: upscaledBlob.type || 'image/png' });
-        originalDimensions = {
-          width: originalDimensions.width * factor,
-          height: originalDimensions.height * factor,
-        };
-        options.onUpscaled?.(factor);
-        onProgress?.(30);
-      } catch {
-        // Upscaling failed — silently fall through to native canvas path.
-      }
+  // If the user checked "Upscale with AI", run the model. Do NOT gate on
+  // "willEnlarge" — the user has explicitly opted in, and upscaling even when
+  // the target is smaller still produces a crisper result than naive downscale
+  // of a low-res source. Model runs at its native 4x scale.
+  if (settings.upscale && options?.upscaleServices?.isModelReady()) {
+    const factor: 4 = 4;
+    onProgress?.(5);
+    const upscaledBlob = await options.upscaleServices.runUpscale(file, factor);
+    // Replace file with upscaled result; bump originalDimensions (if known)
+    // by the scale factor so the subsequent resize step sees the new source.
+    file = new File([upscaledBlob], file.name, { type: upscaledBlob.type || 'image/png' });
+    if (originalDimensions) {
+      originalDimensions = {
+        width: originalDimensions.width * factor,
+        height: originalDimensions.height * factor,
+      };
     }
+    options.onUpscaled?.(factor);
+    onProgress?.(30);
   }
 
   // ── Output format routing ───────────────────────────────────────────────────

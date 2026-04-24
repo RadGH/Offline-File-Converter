@@ -150,3 +150,7 @@ I would like to upgrade it to have an upscale option using a low filesize upscal
 3. First release. Checkbox to enable upscaling. If an image is upscaled, show a bubble on the image card that it was upscaled (and maybe by what factor) so it is obvious it wasn't just enlarged fuzzily
 4. IDK as long as hugging face hub models don't have to go on the repo filesize doesn't matter.
 
+## 2026-04-24 09:39
+
+The upscale feature I can't tell if it works. It looks basically identical to the default scaling. A transparent PNG of pixel art becomes blurry. Is it working? I downloaded the model and checked the box. The filesize is the same when I try normal and then upscale checked. I feel like it isn't applied. Also if you check the upscale box it should be remembered if you refresh the page (as long as the model is present).
+

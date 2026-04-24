@@ -138,50 +138,28 @@ describe('convert() — upscale integration', () => {
     expect(mockConvertViaCanvas).toHaveBeenCalledTimes(1);
   });
 
-  it('skips upscale when output does not exceed source dimensions', async () => {
+  it('runs upscale whenever upscale=true and model ready, regardless of target size', async () => {
     const { services, runUpscaleMock } = makeUpscaleServices(true);
-    // target is smaller than source — no upscaling needed
+    // target is smaller than source — we still run upscale because the user opted in
     await convert(
       makeInput({ upscale: true, width: 100, height: 80 }, { width: 200, height: 160 }),
-      undefined,
-      { upscaleServices: services },
-    );
-    expect(runUpscaleMock).not.toHaveBeenCalled();
-  });
-
-  it('runs upscale when settings.upscale + model ready + output > source', async () => {
-    const { services, runUpscaleMock } = makeUpscaleServices(true);
-    await convert(
-      makeInput({ upscale: true, width: 800, height: 640 }, { width: 200, height: 160 }),
       undefined,
       { upscaleServices: services },
     );
     expect(runUpscaleMock).toHaveBeenCalledTimes(1);
   });
 
-  it('chooses scale=2 when target is 2× source', async () => {
+  it('always calls runUpscale with the model native factor of 4', async () => {
     const { services, runUpscaleMock } = makeUpscaleServices(true);
-    // target 400×320 vs source 200×160 → ratio = 2 → factor should be 2
     await convert(
       makeInput({ upscale: true, width: 400, height: 320 }, { width: 200, height: 160 }),
-      undefined,
-      { upscaleServices: services },
-    );
-    expect(runUpscaleMock).toHaveBeenCalledWith(expect.any(File), 2);
-  });
-
-  it('chooses scale=4 when target is ≥3× source', async () => {
-    const { services, runUpscaleMock } = makeUpscaleServices(true);
-    // target 800×640 vs source 200×160 → ratio = 4 → factor should be 4
-    await convert(
-      makeInput({ upscale: true, width: 800, height: 640 }, { width: 200, height: 160 }),
       undefined,
       { upscaleServices: services },
     );
     expect(runUpscaleMock).toHaveBeenCalledWith(expect.any(File), 4);
   });
 
-  it('calls onUpscaled callback with the chosen factor', async () => {
+  it('calls onUpscaled with factor=4 on every upscale', async () => {
     const { services } = makeUpscaleServices(true);
     const onUpscaled = vi.fn();
     await convert(
@@ -192,7 +170,7 @@ describe('convert() — upscale integration', () => {
     expect(onUpscaled).toHaveBeenCalledWith(4);
   });
 
-  it('does not call onUpscaled when upscale is skipped', async () => {
+  it('does not call onUpscaled when upscale is unchecked', async () => {
     const { services } = makeUpscaleServices(true);
     const onUpscaled = vi.fn();
     await convert(
@@ -203,30 +181,27 @@ describe('convert() — upscale integration', () => {
     expect(onUpscaled).not.toHaveBeenCalled();
   });
 
-  it('falls through to canvas without upscale when no originalDimensions', async () => {
+  it('still upscales even when originalDimensions are unknown', async () => {
     const { services, runUpscaleMock } = makeUpscaleServices(true);
-    // No originalDimensions — can't determine if output enlarges, skip upscale
     await convert(
       makeInput({ upscale: true, width: 800, height: 640 }),
       undefined,
       { upscaleServices: services },
     );
-    expect(runUpscaleMock).not.toHaveBeenCalled();
-    expect(mockConvertViaCanvas).toHaveBeenCalledTimes(1);
+    expect(runUpscaleMock).toHaveBeenCalledTimes(1);
   });
 
-  it('silently falls through to canvas when runUpscale throws', async () => {
+  it('propagates the error (no silent fallback) when runUpscale throws', async () => {
     const services: UpscaleServices = {
       isModelReady: () => true,
       runUpscale: vi.fn().mockRejectedValue(new Error('ORT crash')),
     };
-    const result = await convert(
-      makeInput({ upscale: true, width: 800, height: 640 }, { width: 200, height: 160 }),
-      undefined,
-      { upscaleServices: services },
-    );
-    // Should still produce a result from canvas
-    expect(result).toBeDefined();
-    expect(mockConvertViaCanvas).toHaveBeenCalledTimes(1);
+    await expect(
+      convert(
+        makeInput({ upscale: true, width: 800, height: 640 }, { width: 200, height: 160 }),
+        undefined,
+        { upscaleServices: services },
+      ),
+    ).rejects.toThrow('ORT crash');
   });
 });
