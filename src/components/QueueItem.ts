@@ -2,6 +2,7 @@ import type { QueueItem as QueueItemData } from '@/lib/queue/store';
 import type { QueueStore } from '@/lib/queue/store';
 import { formatBytes } from '@/lib/utils/format-bytes';
 import { createSettingsPanel } from '@/components/SettingsPanel';
+import { convert } from '@/lib/converters/index';
 
 const STATUS_LABELS: Record<string, string> = {
   waiting: 'Waiting',
@@ -13,6 +14,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 /** Tracks which items have their settings panel expanded. */
 const expandedState = new Map<string, boolean>();
+
+/** Returns "62% saved" style string. Positive pct = saved, negative = larger. */
+function formatSavedPct(originalSize: number, outSize: number): string {
+  if (originalSize === 0) return '';
+  const delta = originalSize - outSize;
+  const pct = Math.round((delta / originalSize) * 100);
+  if (pct > 0) return `${pct}% saved`;
+  if (pct < 0) return `${Math.abs(pct)}% larger`;
+  return 'same size';
+}
 
 export function createQueueItemEl(
   item: QueueItemData,
@@ -43,10 +54,27 @@ export function createQueueItemEl(
 
   const meta = document.createElement('span');
   meta.className = 'queue-item__meta';
-  meta.textContent = formatBytes(item.file.size);
+
+  if (item.status === 'done' && item.result) {
+    const saved = formatSavedPct(item.file.size, item.result.outSize);
+    meta.textContent = `${formatBytes(item.file.size)} → ${formatBytes(item.result.outSize)}${saved ? ` (${saved})` : ''}`;
+  } else {
+    meta.textContent = formatBytes(item.file.size);
+  }
 
   info.appendChild(name);
   info.appendChild(meta);
+
+  // Progress bar (visible when processing)
+  const progressBar = document.createElement('div');
+  progressBar.className = 'queue-item__progress-bar';
+  progressBar.style.display = item.status === 'processing' ? '' : 'none';
+
+  const progressFill = document.createElement('div');
+  progressFill.className = 'queue-item__progress-fill';
+  progressFill.style.width = `${item.progress}%`;
+  progressBar.appendChild(progressFill);
+  info.appendChild(progressBar);
 
   // Status badge
   const badge = document.createElement('span');
@@ -59,6 +87,71 @@ export function createQueueItemEl(
     errMsg.className = 'queue-item__error';
     errMsg.textContent = item.error;
     info.appendChild(errMsg);
+  }
+
+  // Actions column
+  const actions = document.createElement('div');
+  actions.className = 'queue-item__actions';
+
+  // Convert button — shown when waiting or error
+  if (item.status === 'waiting' || item.status === 'error') {
+    const convertBtn = document.createElement('button');
+    convertBtn.type = 'button';
+    convertBtn.className = 'queue-item__convert-btn';
+    convertBtn.setAttribute('aria-label', `Convert ${item.file.name}`);
+    convertBtn.textContent = 'Convert';
+
+    convertBtn.addEventListener('click', async () => {
+      store.setStatus(item.id, 'processing');
+      store.setProgress(item.id, 0);
+
+      try {
+        const result = await convert(
+          {
+            file: item.file,
+            settings: item.settings,
+            originalDimensions: item.originalDimensions,
+          },
+          (pct) => store.setProgress(item.id, pct)
+        );
+
+        store.setResult(item.id, {
+          blob: result.blob,
+          outName: result.outName,
+          outSize: result.outSize,
+        });
+        // setResult already sets status to 'done' and progress to 100
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        store.setError(item.id, msg);
+      }
+    });
+
+    actions.appendChild(convertBtn);
+  }
+
+  // Download button — shown when done
+  if (item.status === 'done' && item.result) {
+    const dlBtn = document.createElement('button');
+    dlBtn.type = 'button';
+    dlBtn.className = 'queue-item__download-btn';
+    dlBtn.setAttribute('aria-label', `Download ${item.result.outName}`);
+    dlBtn.textContent = 'Download';
+
+    dlBtn.addEventListener('click', () => {
+      if (!item.result) return;
+      const url = URL.createObjectURL(item.result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.result.outName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after a brief delay to allow the browser to start the download
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    actions.appendChild(dlBtn);
   }
 
   // Expand/collapse chevron button
@@ -85,6 +178,7 @@ export function createQueueItemEl(
   el.appendChild(thumb);
   el.appendChild(info);
   el.appendChild(badge);
+  el.appendChild(actions);
   el.appendChild(expandBtn);
   el.appendChild(removeBtn);
 
