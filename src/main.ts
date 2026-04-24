@@ -2,9 +2,14 @@ import './styles/main.css';
 import { createAdSlot } from '@/components/AdSlot';
 import { createDropZone } from '@/components/DropZone';
 import { createFileQueue } from '@/components/FileQueue';
+import { createGlobalDefaults } from '@/components/GlobalDefaults';
 import { createQueueStore } from '@/lib/queue/store';
+import { startDimensionDetection } from '@/lib/queue/detect-dimensions';
 
 const store = createQueueStore();
+
+// Start background dimension detection for newly-added files
+startDimensionDetection(store);
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app element not found');
@@ -29,9 +34,11 @@ const converterCol = document.createElement('main');
 converterCol.className = 'converter-col';
 converterCol.id = 'main';
 
+const globalDefaults = createGlobalDefaults(store);
 const dropZone = createDropZone((files) => store.addFiles(files));
 const fileQueue = createFileQueue(store);
 
+converterCol.appendChild(globalDefaults);
 converterCol.appendChild(dropZone);
 converterCol.appendChild(fileQueue);
 

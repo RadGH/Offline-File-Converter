@@ -166,4 +166,46 @@ describe('createQueueStore', () => {
     store.setGlobalDefaults({ quality: 60 });
     expect(store.getGlobalDefaults().quality).toBe(60);
   });
+
+  it('setOriginalDimensions stores dimensions on the item', () => {
+    const store = createQueueStore();
+    store.addFiles([makeFile('a.jpg')]);
+    const id = store.getState().items[0].id;
+    expect(store.getState().items[0].originalDimensions).toBeUndefined();
+    store.setOriginalDimensions(id, { width: 1920, height: 1080 });
+    const item = store.getState().items[0];
+    expect(item.originalDimensions).toEqual({ width: 1920, height: 1080 });
+  });
+
+  it('setOriginalDimensions does not affect other items', () => {
+    const store = createQueueStore();
+    store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
+    const [a, b] = store.getState().items;
+    store.setOriginalDimensions(a.id, { width: 800, height: 600 });
+    expect(store.getState().items[0].originalDimensions).toEqual({ width: 800, height: 600 });
+    expect(store.getState().items[1].originalDimensions).toBeUndefined();
+    // b still untouched
+    expect(store.getState().items.find(i => i.id === b.id)?.originalDimensions).toBeUndefined();
+  });
+
+  it('setOriginalDimensions notifies subscribers', () => {
+    const store = createQueueStore();
+    store.addFiles([makeFile('a.jpg')]);
+    const id = store.getState().items[0].id;
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setOriginalDimensions(id, { width: 640, height: 480 });
+    expect(listener).toHaveBeenCalledTimes(1);
+    const state = listener.mock.calls[0][0] as ReturnType<typeof store.getState>;
+    expect(state.items[0].originalDimensions).toEqual({ width: 640, height: 480 });
+  });
+
+  it('setOriginalDimensions can be called multiple times (overwrite)', () => {
+    const store = createQueueStore();
+    store.addFiles([makeFile('a.jpg')]);
+    const id = store.getState().items[0].id;
+    store.setOriginalDimensions(id, { width: 100, height: 100 });
+    store.setOriginalDimensions(id, { width: 200, height: 150 });
+    expect(store.getState().items[0].originalDimensions).toEqual({ width: 200, height: 150 });
+  });
 });

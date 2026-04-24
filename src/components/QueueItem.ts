@@ -1,6 +1,7 @@
 import type { QueueItem as QueueItemData } from '@/lib/queue/store';
 import type { QueueStore } from '@/lib/queue/store';
 import { formatBytes } from '@/lib/utils/format-bytes';
+import { createSettingsPanel } from '@/components/SettingsPanel';
 
 const STATUS_LABELS: Record<string, string> = {
   waiting: 'Waiting',
@@ -10,13 +11,19 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+/** Tracks which items have their settings panel expanded. */
+const expandedState = new Map<string, boolean>();
+
 export function createQueueItemEl(
   item: QueueItemData,
   store: QueueStore
 ): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'queue-item-wrapper';
+  wrapper.dataset.id = item.id;
+
   const el = document.createElement('div');
   el.className = `queue-item queue-item--${item.status}`;
-  el.dataset.id = item.id;
 
   // Thumbnail
   const thumb = document.createElement('img');
@@ -54,6 +61,16 @@ export function createQueueItemEl(
     info.appendChild(errMsg);
   }
 
+  // Expand/collapse chevron button
+  const expandBtn = document.createElement('button');
+  expandBtn.type = 'button';
+  expandBtn.className = 'queue-item__expand';
+  expandBtn.setAttribute('aria-label', `Toggle settings for ${item.file.name}`);
+
+  const isExpanded = expandedState.get(item.id) ?? false;
+  expandBtn.setAttribute('aria-expanded', String(isExpanded));
+  expandBtn.textContent = isExpanded ? '▾' : '▸';
+
   // Remove button
   const removeBtn = document.createElement('button');
   removeBtn.className = 'queue-item__remove';
@@ -68,16 +85,46 @@ export function createQueueItemEl(
   el.appendChild(thumb);
   el.appendChild(info);
   el.appendChild(badge);
+  el.appendChild(expandBtn);
   el.appendChild(removeBtn);
+
+  wrapper.appendChild(el);
+
+  // Settings panel — created lazily on first expand
+  let settingsPanel: HTMLElement | null = null;
+
+  function applyExpandState(expanded: boolean): void {
+    expandedState.set(item.id, expanded);
+    expandBtn.setAttribute('aria-expanded', String(expanded));
+    expandBtn.textContent = expanded ? '▾' : '▸';
+
+    if (expanded) {
+      if (!settingsPanel) {
+        settingsPanel = createSettingsPanel(store, item.id);
+        wrapper.appendChild(settingsPanel);
+      }
+      settingsPanel.style.display = '';
+    } else if (settingsPanel) {
+      settingsPanel.style.display = 'none';
+    }
+  }
+
+  // Apply initial state (restores open state across re-renders)
+  applyExpandState(isExpanded);
+
+  expandBtn.addEventListener('click', () => {
+    const current = expandedState.get(item.id) ?? false;
+    applyExpandState(!current);
+  });
 
   // Cleanup object URL when element is removed from DOM
   const observer = new MutationObserver(() => {
-    if (!document.contains(el)) {
+    if (!document.contains(wrapper)) {
       URL.revokeObjectURL(objectUrl);
       observer.disconnect();
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  return el;
+  return wrapper;
 }

@@ -19,6 +19,11 @@ export interface QueueItemResult {
   outSize: number;
 }
 
+export interface OriginalDimensions {
+  width: number;
+  height: number;
+}
+
 export interface QueueItem {
   id: string;
   file: File;
@@ -27,6 +32,7 @@ export interface QueueItem {
   settings: PerFileSettings;
   error?: string;
   result?: QueueItemResult;
+  originalDimensions?: OriginalDimensions;
 }
 
 export interface QueueState {
@@ -50,6 +56,7 @@ export interface QueueStore {
   setProgress: (id: string, progress: number) => void;
   setResult: (id: string, result: QueueItemResult) => void;
   setError: (id: string, error: string) => void;
+  setOriginalDimensions: (id: string, dims: OriginalDimensions) => void;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
@@ -178,6 +185,16 @@ export function createQueueStore(): QueueStore {
     notify();
   }
 
+  function setOriginalDimensions(id: string, dims: OriginalDimensions): void {
+    state = {
+      ...state,
+      items: state.items.map(item =>
+        item.id === id ? { ...item, originalDimensions: dims } : item
+      ),
+    };
+    notify();
+  }
+
   return {
     getState,
     subscribe,
@@ -192,5 +209,6 @@ export function createQueueStore(): QueueStore {
     setProgress,
     setResult,
     setError,
+    setOriginalDimensions,
   };
 }
