@@ -6,6 +6,8 @@ import { createQueueControls } from '@/components/QueueControls';
 import { createQueueStore } from '@/lib/queue/store';
 import { createQueueProcessor } from '@/lib/queue/processor';
 import { startDimensionDetection } from '@/lib/queue/detect-dimensions';
+import { initUpscaleBoot } from '@/lib/queue/boot-upscale';
+import { upscaleInWorker } from '@/lib/upscale/worker-client';
 import { toast } from '@/components/Toast';
 import { initConsent } from '@/lib/consent';
 import { maybeShowConsentBanner, openConsentBanner } from '@/components/ConsentBanner';
@@ -13,9 +15,17 @@ import { maybeShowConsentBanner, openConsentBanner } from '@/components/ConsentB
 initConsent();
 
 const store = createQueueStore();
+
+// Boot upscale capability detection + cache check (never triggers download)
+initUpscaleBoot(store);
+
 const processor = createQueueProcessor({
   concurrency: store.getQueueSettings().concurrency,
   store,
+  upscaleServices: {
+    isModelReady: () => store.getModelStatus().kind === 'ready',
+    runUpscale: (blob, scale) => upscaleInWorker(blob, { scale }),
+  },
 });
 startDimensionDetection(store);
 if (store.getQueueSettings().autoStart) processor.start();

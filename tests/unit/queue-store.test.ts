@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createQueueStore } from '@/lib/queue/store';
+import type { UpscaleModelStatus } from '@/lib/queue/store';
 
 function makeFile(name: string, type = 'image/jpeg'): File {
   return new File([new Uint8Array(10)], name, { type });
@@ -265,5 +266,140 @@ describe('queueSettings', () => {
     expect(store.getQueueSettings().concurrency).toBe(8);
     store.setQueueSettings({ concurrency: 1 });
     expect(store.getQueueSettings().concurrency).toBe(1);
+  });
+});
+
+// ── Upscale-related store additions ─────────────────────────────────────────
+
+describe('PerFileSettings.upscale default', () => {
+  it('new files default to upscale=false', () => {
+    const store = createQueueStore();
+    store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
+    expect(store.getState().items[0].settings.upscale).toBe(false);
+  });
+
+  it('globalDefaults has upscale=false by default', () => {
+    const store = createQueueStore();
+    expect(store.getGlobalDefaults().upscale).toBe(false);
+  });
+
+  it('setGlobalDefaults propagates upscale to new files', () => {
+    const store = createQueueStore();
+    store.setGlobalDefaults({ upscale: true });
+    store.addFiles([new File([new Uint8Array(10)], 'b.jpg', { type: 'image/jpeg' })]);
+    expect(store.getState().items[0].settings.upscale).toBe(true);
+  });
+});
+
+describe('modelStatus', () => {
+  it('defaults to { kind: "unknown" }', () => {
+    const store = createQueueStore();
+    expect(store.getModelStatus()).toEqual({ kind: 'unknown' });
+  });
+
+  it('setModelStatus transitions to absent', () => {
+    const store = createQueueStore();
+    store.setModelStatus({ kind: 'absent' });
+    expect(store.getModelStatus()).toEqual({ kind: 'absent' });
+  });
+
+  it('setModelStatus transitions to downloading with progress', () => {
+    const store = createQueueStore();
+    store.setModelStatus({ kind: 'downloading', loaded: 4_000_000, total: 19_000_000 });
+    const status = store.getModelStatus() as Extract<UpscaleModelStatus, { kind: 'downloading' }>;
+    expect(status.kind).toBe('downloading');
+    expect(status.loaded).toBe(4_000_000);
+    expect(status.total).toBe(19_000_000);
+  });
+
+  it('setModelStatus transitions to verifying', () => {
+    const store = createQueueStore();
+    store.setModelStatus({ kind: 'verifying' });
+    expect(store.getModelStatus().kind).toBe('verifying');
+  });
+
+  it('setModelStatus transitions to ready with loadedAt', () => {
+    const store = createQueueStore();
+    const ts = Date.now();
+    store.setModelStatus({ kind: 'ready', loadedAt: ts });
+    const status = store.getModelStatus() as Extract<UpscaleModelStatus, { kind: 'ready' }>;
+    expect(status.kind).toBe('ready');
+    expect(status.loadedAt).toBe(ts);
+  });
+
+  it('setModelStatus transitions to error with reason', () => {
+    const store = createQueueStore();
+    store.setModelStatus({ kind: 'error', reason: 'Network error' });
+    const status = store.getModelStatus() as Extract<UpscaleModelStatus, { kind: 'error' }>;
+    expect(status.kind).toBe('error');
+    expect(status.reason).toBe('Network error');
+  });
+
+  it('setModelStatus notifies subscribers', () => {
+    const store = createQueueStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setModelStatus({ kind: 'absent' });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('getState includes modelStatus', () => {
+    const store = createQueueStore();
+    store.setModelStatus({ kind: 'ready', loadedAt: 1 });
+    expect(store.getState().modelStatus).toEqual({ kind: 'ready', loadedAt: 1 });
+  });
+});
+
+describe('upscaleCapability', () => {
+  it('defaults to "unknown"', () => {
+    const store = createQueueStore();
+    expect(store.getUpscaleCapability()).toBe('unknown');
+  });
+
+  it('setUpscaleCapability updates and notifies', () => {
+    const store = createQueueStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setUpscaleCapability('webgpu');
+    expect(store.getUpscaleCapability()).toBe('webgpu');
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('getState includes upscaleCapability', () => {
+    const store = createQueueStore();
+    store.setUpscaleCapability('wasm');
+    expect(store.getState().upscaleCapability).toBe('wasm');
+  });
+});
+
+describe('setUpscaledBy', () => {
+  it('sets upscaledBy on the correct item', () => {
+    const store = createQueueStore();
+    store.addFiles([
+      new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }),
+      new File([new Uint8Array(10)], 'b.jpg', { type: 'image/jpeg' }),
+    ]);
+    const id = store.getState().items[0].id;
+    store.setUpscaledBy(id, 4);
+    expect(store.getState().items[0].upscaledBy).toBe(4);
+    expect(store.getState().items[1].upscaledBy).toBeUndefined();
+  });
+
+  it('supports factor 2', () => {
+    const store = createQueueStore();
+    store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
+    const id = store.getState().items[0].id;
+    store.setUpscaledBy(id, 2);
+    expect(store.getState().items[0].upscaledBy).toBe(2);
+  });
+
+  it('notifies subscribers', () => {
+    const store = createQueueStore();
+    store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
+    const id = store.getState().items[0].id;
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setUpscaledBy(id, 4);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

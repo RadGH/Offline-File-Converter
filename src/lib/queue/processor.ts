@@ -20,14 +20,18 @@
 import type { QueueStore } from '@/lib/queue/store';
 import type { ConverterFn } from '@/lib/converters/types';
 import { convert } from '@/lib/converters/index';
+import type { UpscaleServices } from '@/lib/converters/index';
 
 export type { ConverterFn };
+export type { UpscaleServices };
 
 export interface ProcessorOptions {
   concurrency: number;
   store: QueueStore;
   /** Defaults to the standard converter dispatcher. Override in tests. */
   convertFn?: ConverterFn;
+  /** Optional AI upscale services threaded into each convert() call. */
+  upscaleServices?: UpscaleServices;
 }
 
 export interface ProcessorState {
@@ -52,6 +56,7 @@ export interface QueueProcessor {
 export function createQueueProcessor(opts: ProcessorOptions): QueueProcessor {
   const { store } = opts;
   const convertFn: ConverterFn = opts.convertFn ?? convert;
+  const upscaleServices = opts.upscaleServices;
 
   let concurrency = opts.concurrency;
   let running = false;
@@ -133,7 +138,11 @@ export function createQueueProcessor(opts: ProcessorOptions): QueueProcessor {
         settings: item.settings,
         originalDimensions: item.originalDimensions,
       },
-      (pct) => store.setProgress(id, pct)
+      (pct) => store.setProgress(id, pct),
+      {
+        upscaleServices,
+        onUpscaled: (factor) => store.setUpscaledBy(id, factor),
+      },
     )
       .then(result => {
         active.delete(id);

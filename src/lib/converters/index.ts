@@ -1,8 +1,21 @@
-import type { ConversionInput, ConversionResult } from './types';
+import type { ConversionInput, ConversionResult, ConvertOptions } from './types';
 import { detectInputFormat } from '@/lib/utils/mime';
 import { convertViaCanvas } from './canvas';
+import { applyResize } from '@/lib/utils/resize';
 
-export type { ConversionInput, ConversionResult };
+export type { ConversionInput, ConversionResult, ConvertOptions };
+
+/**
+ * Services injected by the processor to enable optional AI upscaling.
+ * Keeping this as a parameter (not a singleton import) makes the converter
+ * independently testable without touching the store or worker.
+ */
+export interface UpscaleServices {
+  /** Returns true when the model is cached and ready to run. */
+  isModelReady: () => boolean;
+  /** Run upscaling on a Blob. Caller picks scale factor. */
+  runUpscale: (blob: Blob, scale: 2 | 4) => Promise<Blob>;
+}
 
 /**
  * Dispatcher: routes a conversion to the appropriate codec.
@@ -37,7 +50,8 @@ export type { ConversionInput, ConversionResult };
  */
 export async function convert(
   input: ConversionInput,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  options?: { upscaleServices?: UpscaleServices; onUpscaled?: (factor: 2 | 4) => void },
 ): Promise<ConversionResult> {
   let { file, settings } = input;
   let { originalDimensions } = input;
@@ -53,6 +67,48 @@ export async function convert(
     // originalDimensions will be detected fresh from the new file if needed
   }
 
+  // ── Optional AI upscale step (before resize+encode) ──────────────────────────
+  if (
+    settings.upscale &&
+    options?.upscaleServices?.isModelReady() &&
+    originalDimensions
+  ) {
+    const targetDims = applyResize(originalDimensions, {
+      width: settings.width,
+      height: settings.height,
+      maintainAspect: settings.maintainAspect,
+    });
+
+    const willEnlarge =
+      targetDims.width > originalDimensions.width ||
+      targetDims.height > originalDimensions.height;
+
+    if (willEnlarge) {
+      // Choose scale: use 4x if either target dimension is >= 3x original,
+      // otherwise 2x (avoids blowing up memory on modest enlargements).
+      const scaleRatioW = targetDims.width / originalDimensions.width;
+      const scaleRatioH = targetDims.height / originalDimensions.height;
+      const maxRatio = Math.max(scaleRatioW, scaleRatioH);
+      const factor: 2 | 4 = maxRatio >= 3 ? 4 : 2;
+
+      try {
+        onProgress?.(5);
+        const upscaledBlob = await options.upscaleServices.runUpscale(file, factor);
+        // Replace file with upscaled result; update originalDimensions so the
+        // subsequent resize step works from the new (larger) source size.
+        file = new File([upscaledBlob], file.name, { type: upscaledBlob.type || 'image/png' });
+        originalDimensions = {
+          width: originalDimensions.width * factor,
+          height: originalDimensions.height * factor,
+        };
+        options.onUpscaled?.(factor);
+        onProgress?.(30);
+      } catch {
+        // Upscaling failed — silently fall through to native canvas path.
+      }
+    }
+  }
+
   // ── Output format routing ───────────────────────────────────────────────────
   const { format } = settings;
 
@@ -61,7 +117,10 @@ export async function convert(
     case 'png':
     case 'webp': {
       // Canvas API handles these natively in all modern browsers.
-      const result = await convertViaCanvas({ file, settings, originalDimensions }, onProgress);
+      const result = await convertViaCanvas(
+        { file, settings, originalDimensions },
+        onProgress,
+      );
 
       // Optional PNG optimisation pass
       if (format === 'png' && settings.pngOptimize) {

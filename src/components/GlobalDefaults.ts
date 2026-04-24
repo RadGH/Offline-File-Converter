@@ -1,5 +1,6 @@
 import type { QueueStore, PerFileSettings, OutputFormat } from '@/lib/queue/store';
 import { computePairedDimension } from '@/lib/utils/resize';
+import { createUpscaleModelPanel } from './UpscaleModelPanel.js';
 
 const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
   { value: 'jpeg', label: 'JPEG' },
@@ -160,12 +161,42 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
   pngOptimizeHelp.textContent = 'Uses UPNG for extra compression. Adds 1–3s per file.';
   pngOptimizeRow.appendChild(pngOptimizeHelp);
 
+  // Upscale with AI checkbox row
+  const upscaleRow = document.createElement('div');
+  upscaleRow.className = 'settings-panel__row';
+  const upscaleLabel = document.createElement('label');
+  upscaleLabel.className = 'settings-panel__field settings-panel__field--checkbox';
+  upscaleLabel.id = 'global-upscale-label';
+  const upscaleCheckbox = document.createElement('input');
+  upscaleCheckbox.type = 'checkbox';
+  upscaleCheckbox.className = 'settings-panel__checkbox';
+  upscaleCheckbox.id = 'global-upscale-checkbox';
+  upscaleLabel.appendChild(upscaleCheckbox);
+  upscaleLabel.append(' Upscale with AI (when enlarging)');
+  upscaleLabel.title =
+    'When enabled, images that would be enlarged by resize are run through the AI ' +
+    'upscaler before resizing. If disabled, browser-native interpolation is used (fuzzier).';
+  upscaleRow.appendChild(upscaleLabel);
+
+  const upscaleHint = document.createElement('span');
+  upscaleHint.className = 'upscale-model-panel__hint';
+  upscaleHint.style.display = 'none';
+  upscaleHint.innerHTML =
+    '<a href="#upscale-model-download-btn" class="upscale-model-panel__hint-link">Download AI model first</a>';
+  upscaleRow.appendChild(upscaleHint);
+
   body.appendChild(formatRow);
   body.appendChild(qualityRow);
   body.appendChild(dimsRow);
   body.appendChild(aspectRow);
   body.appendChild(stripRow);
   body.appendChild(pngOptimizeRow);
+  body.appendChild(upscaleRow);
+
+  // Mount the upscale model panel at the bottom of the body
+  const upscaleModelPanel = createUpscaleModelPanel(store);
+  upscaleModelPanel.id = 'upscale-model-panel';
+  body.appendChild(upscaleModelPanel);
 
   wrapper.appendChild(header);
   wrapper.appendChild(body);
@@ -201,10 +232,28 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
     const isPng = defaults.format === 'png';
     pngOptimizeRow.style.display = isPng ? '' : 'none';
     pngOptimizeCheckbox.checked = defaults.pngOptimize;
+
+    upscaleCheckbox.checked = defaults.upscale;
+  }
+
+  function syncUpscaleAvailability(): void {
+    const modelStatus = store.getModelStatus();
+    const capability = store.getUpscaleCapability();
+    const modelReady = modelStatus.kind === 'ready';
+    const canUpscale = modelReady && capability !== 'none';
+
+    upscaleCheckbox.disabled = !canUpscale;
+    upscaleHint.style.display = canUpscale ? 'none' : '';
   }
 
   // Initial sync
   syncFromDefaults(store.getGlobalDefaults());
+  syncUpscaleAvailability();
+
+  // Re-sync upscale availability when store changes (model status, capability)
+  store.subscribe(() => {
+    syncUpscaleAvailability();
+  });
 
   // ── Event handlers ──────────────────────────────────────────────────────────
 
@@ -283,6 +332,10 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
 
   pngOptimizeCheckbox.addEventListener('change', () => {
     store.setGlobalDefaults({ pngOptimize: pngOptimizeCheckbox.checked });
+  });
+
+  upscaleCheckbox.addEventListener('change', () => {
+    store.setGlobalDefaults({ upscale: upscaleCheckbox.checked });
   });
 
   return wrapper;

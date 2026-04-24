@@ -38,6 +38,7 @@ function makeDoneItem(id: string, outName: string): QueueItem {
       maintainAspect: true,
       stripMetadata: true,
       pngOptimize: false,
+      upscale: false,
     },
     result: {
       blob: makeBlob(id),
@@ -61,6 +62,7 @@ function makeNonDoneItem(id: string, status: QueueItem['status'] = 'waiting'): Q
       maintainAspect: true,
       stripMetadata: true,
       pngOptimize: false,
+      upscale: false,
     },
   };
 }

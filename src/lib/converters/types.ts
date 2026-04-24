@@ -15,7 +15,17 @@ export interface ConversionResult {
   outFormat: OutputFormat;
 }
 
+/** Third-argument options bag passed by the processor into convert(). */
+export interface ConvertOptions {
+  upscaleServices?: {
+    isModelReady: () => boolean;
+    runUpscale: (blob: Blob, scale: 2 | 4) => Promise<Blob>;
+  };
+  onUpscaled?: (factor: 2 | 4) => void;
+}
+
 export type ConverterFn = (
   input: ConversionInput,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  options?: ConvertOptions,
 ) => Promise<ConversionResult>;

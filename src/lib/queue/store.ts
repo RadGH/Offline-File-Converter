@@ -30,6 +30,8 @@ export interface PerFileSettings {
   stripMetadata: boolean;
   /** Only applies when format === 'png'. Runs UPNG optimizer after canvas encode. */
   pngOptimize: boolean;
+  /** When true and model is ready, upscale via AI before resize when enlarging. */
+  upscale: boolean;
 }
 
 export interface QueueItemResult {
@@ -52,7 +54,21 @@ export interface QueueItem {
   error?: string;
   result?: QueueItemResult;
   originalDimensions?: OriginalDimensions;
+  /** Set after processing when AI upscaling was applied. */
+  upscaledBy?: 2 | 4;
 }
+
+// ── Upscale model status ──────────────────────────────────────────────────────
+
+export type UpscaleModelStatus =
+  | { kind: 'unknown' }
+  | { kind: 'absent' }
+  | { kind: 'downloading'; loaded: number; total: number }
+  | { kind: 'verifying' }
+  | { kind: 'ready'; loadedAt: number }
+  | { kind: 'error'; reason: string };
+
+export type UpscaleCapabilityValue = 'unknown' | 'webgpu' | 'wasm' | 'none';
 
 export interface QueueSettings {
   concurrency: number;
@@ -63,6 +79,8 @@ export interface QueueState {
   items: QueueItem[];
   globalDefaults: PerFileSettings;
   queueSettings: QueueSettings;
+  modelStatus: UpscaleModelStatus;
+  upscaleCapability: UpscaleCapabilityValue;
 }
 
 export type Listener = (state: QueueState) => void;
@@ -84,6 +102,11 @@ export interface QueueStore {
   setOriginalDimensions: (id: string, dims: OriginalDimensions) => void;
   setQueueSettings: (patch: Partial<QueueSettings>) => void;
   getQueueSettings: () => QueueSettings;
+  setModelStatus: (next: UpscaleModelStatus) => void;
+  getModelStatus: () => UpscaleModelStatus;
+  setUpscaleCapability: (c: UpscaleCapabilityValue) => void;
+  getUpscaleCapability: () => UpscaleCapabilityValue;
+  setUpscaledBy: (id: string, factor: 2 | 4) => void;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
@@ -94,6 +117,7 @@ const DEFAULT_SETTINGS: PerFileSettings = {
   maintainAspect: true,
   stripMetadata: true,
   pngOptimize: false,
+  upscale: false,
 };
 
 const DEFAULT_QUEUE_SETTINGS: QueueSettings = {
@@ -106,6 +130,8 @@ export function createQueueStore(): QueueStore {
     items: [],
     globalDefaults: { ...DEFAULT_SETTINGS },
     queueSettings: { ...DEFAULT_QUEUE_SETTINGS },
+    modelStatus: { kind: 'unknown' },
+    upscaleCapability: 'unknown',
   };
 
   const listeners = new Set<Listener>();
@@ -241,6 +267,34 @@ export function createQueueStore(): QueueStore {
     return state.queueSettings;
   }
 
+  function setModelStatus(next: UpscaleModelStatus): void {
+    state = { ...state, modelStatus: next };
+    notify();
+  }
+
+  function getModelStatus(): UpscaleModelStatus {
+    return state.modelStatus;
+  }
+
+  function setUpscaleCapability(c: UpscaleCapabilityValue): void {
+    state = { ...state, upscaleCapability: c };
+    notify();
+  }
+
+  function getUpscaleCapability(): UpscaleCapabilityValue {
+    return state.upscaleCapability;
+  }
+
+  function setUpscaledBy(id: string, factor: 2 | 4): void {
+    state = {
+      ...state,
+      items: state.items.map(item =>
+        item.id === id ? { ...item, upscaledBy: factor } : item
+      ),
+    };
+    notify();
+  }
+
   return {
     getState,
     subscribe,
@@ -258,5 +312,10 @@ export function createQueueStore(): QueueStore {
     setOriginalDimensions,
     setQueueSettings,
     getQueueSettings,
+    setModelStatus,
+    getModelStatus,
+    setUpscaleCapability,
+    getUpscaleCapability,
+    setUpscaledBy,
   };
 }

@@ -113,6 +113,15 @@ export function createQueueItemEl(
       : 'Same size as original';
   }
 
+  // Upscaled bubble — shown when AI upscaling ran
+  let upscaledBubble: HTMLElement | null = null;
+  if (item.upscaledBy) {
+    upscaledBubble = document.createElement('span');
+    upscaledBubble.className = 'queue-item__upscaled';
+    upscaledBubble.textContent = `↑ Upscaled ${item.upscaledBy}×`;
+    upscaledBubble.title = `AI upscaling applied (${item.upscaledBy}× super-resolution)`;
+  }
+
   const badge = document.createElement('span');
   badge.className = `queue-item__badge queue-item__badge--${item.status}`;
   badge.textContent = STATUS_LABELS[item.status] ?? item.status;
@@ -210,6 +219,7 @@ export function createQueueItemEl(
   el.appendChild(thumb);
   el.appendChild(info);
   if (savedBubble) el.appendChild(savedBubble);
+  if (upscaledBubble) el.appendChild(upscaledBubble);
   el.appendChild(badge);
   el.appendChild(actions);
   el.appendChild(removeBtn);

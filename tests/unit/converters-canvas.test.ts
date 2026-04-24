@@ -71,6 +71,7 @@ function makeInput(
       maintainAspect: true,
       stripMetadata: true,
       pngOptimize: false,
+      upscale: false,
       ...overrides,
     },
     originalDimensions,

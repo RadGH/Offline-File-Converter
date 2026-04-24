@@ -66,6 +66,7 @@ function makeInput(overrides: Partial<ConversionInput['settings']> = {}): Conver
       maintainAspect: true,
       stripMetadata: true,
       pngOptimize: false,
+      upscale: false,
       ...overrides,
     },
   };
