@@ -104,3 +104,49 @@ Add to <head>:
   gtag('config', 'G-QDQRJQ2WD4');
 </script>
 
+## 2026-04-24 02:04
+
+2s
+1s
+Run actions/setup-node@v4
+Found in cache @ /opt/hostedtoolcache/node/20.20.2/x64
+Environment details
+/opt/hostedtoolcache/node/20.20.2/x64/bin/npm config get cache
+/home/runner/.npm
+Error: Dependencies lock file is not found in /home/runner/work/Offline-File-Converter/Offline-File-Converter. Supported file patterns: package-lock.json,npm-shrinkwrap.json,yarn.lock
+
+## 2026-04-24 02:09
+
+This still isn't working https://convert.radgh.com/
+
+## 2026-04-24 02:11
+
+I updated cloudflare to have convert.radgh.com pointed to radgh.github.io and confirm convert.radgh.com is in github and says dns check successful, github actions are green
+
+## 2026-04-24 02:13
+
+It worked momentarily and now says skip to main content again. This page works https://convert.radgh.com/privacy.html
+
+## 2026-04-24 02:15
+
+1 red error: https://convert.radgh.com/
+
+## 2026-04-24 02:15
+
+1 red error: main.ts:1 Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "video/mp2t". Strict MIME type checking is enforced for module scripts per HTML spec.
+
+## 2026-04-24 02:17
+
+I changed it to github actions. Do we need to re-deploy?
+
+## 2026-04-24 02:21
+
+I would like to upgrade it to have an upscale option using a low filesize upscale model (<50mb). I would like the model to be able to download and show a progress bar, then be cached for repeated use. Goal is that I can upload a photo and set to 4k resolution and the upscale should help improve the quality compared to traditional. It does not have to be perfect, just decent. See spec at BUILD_PLAN_P2_UPSCALE.md however it is NOT rigid - feel free to adapt to current tech. Ask some questions before I leave for the night, then you can work continuously and release once tested and confirmed working.
+
+## 2026-04-24 02:25
+
+1. B
+2. Single flow- keep it modern and slick and easy.
+3. First release. Checkbox to enable upscaling. If an image is upscaled, show a bubble on the image card that it was upscaled (and maybe by what factor) so it is obvious it wasn't just enlarged fuzzily
+4. IDK as long as hugging face hub models don't have to go on the repo filesize doesn't matter.
+

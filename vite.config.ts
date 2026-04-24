@@ -30,8 +30,12 @@ export default defineConfig({
   // Exclude WASM-based packages from Vite's pre-bundling so their own
   // WASM asset URLs resolve correctly at runtime via the module's internal
   // fetch() paths rather than through Vite's optimized bundle.
+  // onnxruntime-web must not be pre-bundled: its mjs/wasm side-files are
+  // resolved via import.meta.url relative to the dist/ directory; if Vite
+  // inlines them the relative URLs break. Excluding it causes Vite to serve
+  // the raw ESM from node_modules/onnxruntime-web/dist/ directly.
   optimizeDeps: {
-    exclude: ['@jsquash/avif'],
+    exclude: ['@jsquash/avif', 'onnxruntime-web'],
   },
   // Ensure .wasm files are served with the correct MIME type
   assetsInclude: ['**/*.wasm'],

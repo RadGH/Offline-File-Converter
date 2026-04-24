@@ -3,6 +3,10 @@
    ========================================================================== */
 
 :root {
+  /* Tell the browser to render native form controls (including <select> option
+     dropdown) in dark mode. Fixes white-on-white on Chrome/Windows. */
+  color-scheme: dark;
+
   /* Palette */
   --bg-0: #070814;
   --bg-1: #0b0d1a;
@@ -806,6 +810,16 @@ body {
   color: var(--fg);
   cursor: pointer;
   font-family: inherit;
+  /* Force dark scheme on this control so Chrome/Edge render the open
+     option list with dark background instead of default white. */
+  color-scheme: dark;
+}
+
+/* Native <option> elements: many browsers ignore theme vars, so set
+   explicit dark colors. Works in Chrome/Edge/Firefox on most platforms. */
+.settings-panel__select option {
+  background-color: #161b2e;
+  color: var(--fg);
 }
 
 .settings-panel__slider {
@@ -897,45 +911,6 @@ body {
   transition: color 0.15s;
 }
 .site-footer__link:hover { color: var(--accent-2); }
-
-/* ── Drag overlay ──────────────────────────────────────────────────────── */
-.drag-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(7, 8, 20, 0.82);
-  backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  pointer-events: none;
-}
-body.dragging-over .drag-overlay { display: flex; }
-
-.drag-overlay__inner {
-  padding: 3rem 4rem;
-  border: 2px dashed var(--accent);
-  border-radius: var(--radius-lg);
-  text-align: center;
-  background: var(--surface);
-  box-shadow: var(--shadow-glow);
-}
-
-.drag-overlay__icon {
-  font-size: 3rem;
-  color: var(--accent);
-  filter: drop-shadow(0 0 20px rgba(124, 92, 255, 0.8));
-}
-
-.drag-overlay__text {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-top: 0.5rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
 
 /* ── Toasts ────────────────────────────────────────────────────────────── */
 .toast-container {

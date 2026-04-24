@@ -136,36 +136,12 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 });
 
-// Full-page drag overlay
-let dragCounter = 0;
-const dragOverlay = document.createElement('div');
-dragOverlay.className = 'drag-overlay';
-dragOverlay.setAttribute('aria-hidden', 'true');
-dragOverlay.innerHTML = `
-  <div class="drag-overlay__inner">
-    <div class="drag-overlay__icon">&#11015;</div>
-    <div class="drag-overlay__text">Drop to convert</div>
-  </div>
-`;
-document.body.appendChild(dragOverlay);
-
-document.addEventListener('dragenter', (e) => {
-  e.preventDefault();
-  dragCounter++;
-  if (dragCounter === 1) document.body.classList.add('dragging-over');
-});
-document.addEventListener('dragleave', () => {
-  dragCounter--;
-  if (dragCounter <= 0) {
-    dragCounter = 0;
-    document.body.classList.remove('dragging-over');
-  }
-});
+// Allow dropping files anywhere on the page (no fullscreen overlay — it could
+// get stuck open on some platforms). DropZone has its own visual hover state
+// and stopPropagation, so drops inside the zone don't double-fire here.
 document.addEventListener('dragover', (e) => { e.preventDefault(); });
 document.addEventListener('drop', (e) => {
   e.preventDefault();
-  dragCounter = 0;
-  document.body.classList.remove('dragging-over');
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) store.addFiles(Array.from(files));
 });
