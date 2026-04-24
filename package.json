@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:matrix": "playwright test conversion-matrix.spec.ts && node scripts/generate-matrix-report.mjs",
+    "test:matrix": "playwright test tests/e2e/conversion-matrix.spec.ts && node scripts/generate-matrix-report.mjs",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
