@@ -167,3 +167,7 @@ ort-wasm-simd-threaded.jsep.mjs:68 2026-04-24 09:58:06.450498 [W:onnxruntime:, s
 
 ort-wasm-simd-threaded.jsep.mjs:68 2026-04-24 09:58:06.452898 [W:onnxruntime:, session_state.cc:1329 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.
 
+## 2026-04-24 10:07
+
+"Cannot read properties of null (reading 'Nd')"Cannot read properties of null (reading 'Nd')2026-04-24 10:06:48.933398 [W:onnxruntime:, session_state.cc:1327 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
+

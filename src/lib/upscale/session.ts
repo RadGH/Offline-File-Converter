@@ -60,9 +60,19 @@ async function _createSession(): Promise<OrtType.InferenceSession> {
     );
   }
 
-  const capability = await detectCapability();
-  const executionProviders: string[] =
-    capability === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
+  // NOTE: The current Swin2SR INT8 model triggers a null-deref ("Cannot read
+  // properties of null (reading 'Nd')") inside ORT's WebGPU backend during
+  // session.run — WebGPU kernel coverage for INT8 ops is incomplete. Until
+  // we swap to an fp16/fp32 model variant, stick with WASM which has full
+  // coverage and works reliably across browsers.
+  await detectCapability(); // still probe so other code paths can show the UI
+  const executionProviders: string[] = ['wasm'];
+
+  // Enable multi-threading when available (requires cross-origin isolation
+  // headers — if absent, numThreads falls back to 1 automatically).
+  if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
+    ort.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency, 4);
+  }
 
   const session = await ort.InferenceSession.create(bytes.buffer as ArrayBuffer, {
     executionProviders,
