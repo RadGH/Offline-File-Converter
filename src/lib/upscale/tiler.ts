@@ -76,18 +76,28 @@ export function splitIntoTiles(
 
   for (const ty of ys) {
     for (const tx of xs) {
-      const tw = Math.min(tileSize, width - tx);
-      const th = Math.min(tileSize, height - ty);
+      // Always produce a full tileSize × tileSize tile. Pixels outside the
+      // source image are filled by clamp-to-edge replication so the model
+      // (which requires uniform square inputs) never sees odd shapes and the
+      // padded region contributes plausible neighbour color rather than black
+      // bleeding into the result.
+      const tileData = new ImageData(tileSize, tileSize);
+      const src = imageData.data;
+      const dst = tileData.data;
 
-      // Extract tile pixels.
-      const tileData = new ImageData(tw, th);
-      for (let row = 0; row < th; row++) {
-        const srcStart = ((ty + row) * width + tx) * 4;
-        const dstStart = row * tw * 4;
-        tileData.data.set(
-          imageData.data.subarray(srcStart, srcStart + tw * 4),
-          dstStart,
-        );
+      for (let row = 0; row < tileSize; row++) {
+        const srcRow = Math.max(0, Math.min(height - 1, ty + row));
+        const srcRowStart = srcRow * width;
+        const dstRowStart = row * tileSize;
+        for (let col = 0; col < tileSize; col++) {
+          const srcCol = Math.max(0, Math.min(width - 1, tx + col));
+          const s = (srcRowStart + srcCol) * 4;
+          const d = (dstRowStart + col) * 4;
+          dst[d + 0] = src[s + 0];
+          dst[d + 1] = src[s + 1];
+          dst[d + 2] = src[s + 2];
+          dst[d + 3] = src[s + 3];
+        }
       }
 
       tiles.push({ x: tx, y: ty, data: tileData });

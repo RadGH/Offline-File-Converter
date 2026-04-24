@@ -187,3 +187,9 @@ Can you test yourself with browser on github to ensure it works with upscale ena
 
 I don't mind if it takes awhile. Is it possible to show an ETA or progress bar, separate from the current one, specific to upscaling? If not, can we take a guess based on the pixel size of the image and the realistic timing chart you sent?
 
+## 2026-04-24 11:13
+
+So I didn't try the new version but I looked back at my old tab that was processing. It never finished. It gave this error, is this helpful?
+
+failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE: /mnt/vss/_work/1/s/onnxruntime/core/providers/cpu/tensor/reshape_helper.h:47 onnxruntime::ReshapeHelper::ReshapeHelper(const TensorShape &, TensorShapeVector &, bool) input_shape_size == size was false. The input tensor cannot be reshaped to the requested shape. Input shape:{1,180,65536}, requested shape:{1,180,256,253}
+

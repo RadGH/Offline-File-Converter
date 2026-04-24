@@ -28,13 +28,15 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /** Estimate upscale duration from image dimensions.
- *  Baseline: ~11s per 224x224 tile on single-threaded WASM. */
+ *  Baseline: ~65s per 256×256 tile on single-threaded WASM — the self-correcting
+ *  logic in the render path replaces this with the observed rate once inference
+ *  is ≥10% in, so this is just the first guess before any real data. */
 function estimateUpscaleTotalMs(item: QueueItemData): number {
   const dims = item.originalDimensions;
-  if (!dims) return 60_000;
+  if (!dims) return 65_000;
   const step = 224; // 256 tile minus 32 overlap
   const tiles = Math.max(1, Math.ceil(dims.width / step)) * Math.max(1, Math.ceil(dims.height / step));
-  return tiles * 11_000;
+  return tiles * 65_000;
 }
 
 function formatDuration(ms: number): string {
