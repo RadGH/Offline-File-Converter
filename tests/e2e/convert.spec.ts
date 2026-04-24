@@ -4,6 +4,9 @@
  * NOTE (Phase 5 update): The per-item "Convert" button was removed in Phase 5.
  * Conversions are now driven automatically by the queue processor.
  * These tests upload a file and wait for the processor to complete it.
+ *
+ * NOTE (Phase N update): Per-item settings panel removed. Format is set via
+ * GlobalDefaults BEFORE upload so new files inherit the chosen format.
  */
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'url';
@@ -18,9 +21,8 @@ test.describe('Phase 4 — Canvas converter', () => {
   test('upload PNG, convert to WebP, download returns valid image', async ({ page }) => {
     await page.goto('/');
 
-    // ── 1. Pause queue so we can set format before processing starts ──
-    const startPauseBtn = page.locator('.queue-controls__start-pause');
-    await startPauseBtn.click(); // toggles to paused
+    // ── 1. Set global default to WebP BEFORE upload ──
+    await page.locator('.global-defaults .settings-panel__select').first().selectOption('webp');
 
     // ── 2. Upload the fixture via the hidden file input ──
     const fileInput = page.locator('input[type="file"]');
@@ -30,27 +32,15 @@ test.describe('Phase 4 — Canvas converter', () => {
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
 
-    // ── 3. Change format to webp via the settings panel ──
-    // Open the settings panel
-    const expandBtn = queueItem.locator('.queue-item__expand');
-    await expandBtn.click();
-
-    // Select WebP in the format dropdown
-    const formatSelect = queueItem.locator('.settings-panel__select').first();
-    await formatSelect.selectOption('webp');
-
-    // ── 4. Resume queue — processor picks up the item ──
-    await startPauseBtn.click();
-
-    // ── 5. Wait for the Download button to appear ──
+    // ── 3. Wait for the Download button to appear (processor auto-starts) ──
     const downloadBtn = queueItem.locator('.queue-item__download-btn');
     await expect(downloadBtn).toBeVisible({ timeout: 15000 });
 
-    // ── 6. Verify "done" badge ──
+    // ── 4. Verify "done" badge ──
     const badge = queueItem.locator('.queue-item__badge--done');
     await expect(badge).toBeVisible();
 
-    // ── 7. Capture the download and verify blob properties ──
+    // ── 5. Capture the download and verify blob properties ──
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       downloadBtn.click(),
@@ -137,24 +127,14 @@ test.describe('Phase 4 — Canvas converter', () => {
   test('AVIF output converts successfully (Phase 6)', async ({ page }) => {
     await page.goto('/');
 
+    // ── Set global default to AVIF BEFORE upload ──
+    await page.locator('.global-defaults .settings-panel__select').first().selectOption('avif');
+
     const fileInput = page.locator('input[type="file"]');
-
-    // Pause queue before uploading so we can change format first
-    const startPauseBtn = page.locator('.queue-controls__start-pause');
-    await startPauseBtn.click(); // pause
-
     await fileInput.setInputFiles(FIXTURE_PNG);
 
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
-
-    // Open settings and pick AVIF
-    await queueItem.locator('.queue-item__expand').click();
-    const formatSelect = queueItem.locator('.settings-panel__select').first();
-    await formatSelect.selectOption('avif');
-
-    // Resume — processor picks up the item
-    await startPauseBtn.click();
 
     // Should end up in done state (AVIF encoder is now wired)
     const doneBadge = queueItem.locator('.queue-item__badge--done');

@@ -893,3 +893,146 @@ body.dragging-over .drag-overlay {
     gap: 0.4rem;
   }
 }
+
+/* ── Queue controls hide/show ──────────────────────────────────────────── */
+.queue-controls--hidden { display: none; }
+
+/* ── Saved % bubble ────────────────────────────────────────────────────── */
+.queue-item__saved {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.3em 0.7em;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.02em;
+}
+.queue-item__saved--saved  { background: #dcfce7; color: #15803d; }
+.queue-item__saved--larger { background: #fee2e2; color: #991b1b; }
+.queue-item__saved--same   { background: var(--border); color: var(--fg); }
+
+/* ── Compare panel (before/after slider) ───────────────────────────────── */
+.compare-panel {
+  padding: 0.75rem 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.compare-panel__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.compare-panel__viewport {
+  position: relative;
+  width: 100%;
+  max-height: 480px;
+  overflow: hidden;
+  background: repeating-conic-gradient(#f5f5f5 0% 25%, #ffffff 0% 50%) 50% / 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  touch-action: none;
+  user-select: none;
+  cursor: ew-resize;
+  min-height: 240px;
+}
+
+.compare-panel__viewport {
+  --split: 50%;
+}
+
+.compare-panel__after {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  position: relative;
+  z-index: 1;
+}
+
+.compare-panel__before-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+  clip-path: inset(0 calc(100% - var(--split)) 0 0);
+}
+
+.compare-panel__before {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  /* Subpixel-alignment fix for HiDPI / fractional UI scale (e.g. Windows 150%)
+     where the clipped "before" can render 0.5px offset from the "after". */
+  transform: translateY(0.5px);
+}
+
+.compare-panel__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--split, 50%);
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.compare-panel__handle::before {
+  content: '⇔';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.compare-panel__slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: ew-resize;
+}
+
+.queue-item__compare-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.queue-item__compare-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

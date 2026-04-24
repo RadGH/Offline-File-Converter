@@ -2,9 +2,7 @@ import type { QueueItem as QueueItemData, OutputFormat } from '@/lib/queue/store
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { formatBytes } from '@/lib/utils/format-bytes';
-import { createSettingsPanel } from '@/components/SettingsPanel';
 
-/** Format factors for estimated output size heuristic. */
 const FORMAT_FACTOR: Record<OutputFormat, number> = {
   jpeg: 0.55,
   webp: 0.45,
@@ -29,17 +27,13 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-/** Tracks which items have their settings panel expanded. */
-const expandedState = new Map<string, boolean>();
+/** Tracks which items have their compare panel open. */
+const compareOpen = new Map<string, boolean>();
 
-/** Returns "62% saved" style string. Positive pct = saved, negative = larger. */
-function formatSavedPct(originalSize: number, outSize: number): string {
-  if (originalSize === 0) return '';
-  const delta = originalSize - outSize;
-  const pct = Math.round((delta / originalSize) * 100);
-  if (pct > 0) return `${pct}% saved`;
-  if (pct < 0) return `${Math.abs(pct)}% larger`;
-  return 'same size';
+/** Integer percent saved; negative if larger. */
+function savedPct(originalSize: number, outSize: number): number {
+  if (originalSize === 0) return 0;
+  return Math.round(((originalSize - outSize) / originalSize) * 100);
 }
 
 export function createQueueItemEl(
@@ -54,14 +48,12 @@ export function createQueueItemEl(
   const el = document.createElement('div');
   el.className = `queue-item queue-item--${item.status}`;
 
-  // Thumbnail
   const thumb = document.createElement('img');
   thumb.className = 'queue-item__thumb';
   thumb.alt = item.file.name;
-  const objectUrl = URL.createObjectURL(item.file);
-  thumb.src = objectUrl;
+  const originalUrl = URL.createObjectURL(item.file);
+  thumb.src = originalUrl;
 
-  // Info column
   const info = document.createElement('div');
   info.className = 'queue-item__info';
 
@@ -74,21 +66,16 @@ export function createQueueItemEl(
   meta.className = 'queue-item__meta';
 
   if (item.status === 'done' && item.result) {
-    const saved = formatSavedPct(item.file.size, item.result.outSize);
-    meta.textContent = `${formatBytes(item.file.size)} → ${formatBytes(item.result.outSize)}${saved ? ` (${saved})` : ''}`;
+    meta.textContent = `${formatBytes(item.file.size)} → ${formatBytes(item.result.outSize)}`;
   } else {
     const estSize = estimatedOutputSize(item);
     const estText = estSize !== null ? ` · ≈ ${formatBytes(estSize)} expected` : '';
     meta.textContent = formatBytes(item.file.size) + estText;
   }
 
-  // Estimate span — hidden by CSS class; code stays for easy re-enable
-  meta.classList.add('estimate');
-
   info.appendChild(name);
   info.appendChild(meta);
 
-  // Progress bar (visible when processing)
   const progressBar = document.createElement('div');
   progressBar.className = 'queue-item__progress-bar';
   progressBar.style.display = item.status === 'processing' ? '' : 'none';
@@ -104,12 +91,6 @@ export function createQueueItemEl(
   progressBar.appendChild(progressFill);
   info.appendChild(progressBar);
 
-  // Status badge
-  const badge = document.createElement('span');
-  badge.className = `queue-item__badge queue-item__badge--${item.status}`;
-  badge.textContent = STATUS_LABELS[item.status] ?? item.status;
-
-  // Error message
   if (item.error) {
     const errMsg = document.createElement('span');
     errMsg.className = 'queue-item__error';
@@ -117,48 +98,90 @@ export function createQueueItemEl(
     info.appendChild(errMsg);
   }
 
-  // Actions column
+  // Prominent saved-% bubble — shown only when done and we have a meaningful change
+  let savedBubble: HTMLElement | null = null;
+  if (item.status === 'done' && item.result) {
+    const pct = savedPct(item.file.size, item.result.outSize);
+    savedBubble = document.createElement('span');
+    const polarity = pct > 0 ? 'saved' : pct < 0 ? 'larger' : 'same';
+    savedBubble.className = `queue-item__saved queue-item__saved--${polarity}`;
+    if (pct > 0) savedBubble.textContent = `−${pct}%`;
+    else if (pct < 0) savedBubble.textContent = `+${Math.abs(pct)}%`;
+    else savedBubble.textContent = '±0%';
+    savedBubble.title = pct > 0 ? `${pct}% smaller than original`
+      : pct < 0 ? `${Math.abs(pct)}% larger than original`
+      : 'Same size as original';
+  }
+
+  const badge = document.createElement('span');
+  badge.className = `queue-item__badge queue-item__badge--${item.status}`;
+  badge.textContent = STATUS_LABELS[item.status] ?? item.status;
+
+  // Actions
   const actions = document.createElement('div');
   actions.className = 'queue-item__actions';
 
-  // Cancel button — shown when waiting or processing
   if (item.status === 'waiting' || item.status === 'processing') {
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.className = 'queue-item__cancel-btn';
     cancelBtn.setAttribute('aria-label', `Cancel ${item.file.name}`);
     cancelBtn.textContent = 'Cancel';
-
-    cancelBtn.addEventListener('click', () => {
-      processor.cancelItem(item.id);
-    });
-
+    cancelBtn.addEventListener('click', () => processor.cancelItem(item.id));
     actions.appendChild(cancelBtn);
   }
 
-  // Retry button — shown when error or cancelled
   if (item.status === 'error' || item.status === 'cancelled') {
     const retryBtn = document.createElement('button');
     retryBtn.type = 'button';
     retryBtn.className = 'queue-item__retry-btn';
     retryBtn.setAttribute('aria-label', `Retry ${item.file.name}`);
     retryBtn.textContent = 'Retry';
-
-    retryBtn.addEventListener('click', () => {
-      processor.retryItem(item.id);
-    });
-
+    retryBtn.addEventListener('click', () => processor.retryItem(item.id));
     actions.appendChild(retryBtn);
   }
 
-  // Download button — shown when done
+  // Compare panel (lazy) + Compare + Download buttons — only when done
+  let comparePanel: HTMLElement | null = null;
+  let compareBtn: HTMLButtonElement | null = null;
+
+  const comparePanelId = `compare-panel-${item.id}`;
+
+  function setCompareOpen(open: boolean): void {
+    compareOpen.set(item.id, open);
+    if (!compareBtn) return;
+    compareBtn.setAttribute('aria-expanded', String(open));
+    compareBtn.textContent = open ? 'Hide compare' : 'Compare';
+
+    if (open) {
+      if (!comparePanel && item.result) {
+        comparePanel = buildComparePanel(comparePanelId, originalUrl, item.result.blob);
+        wrapper.appendChild(comparePanel);
+      }
+      if (comparePanel) comparePanel.style.display = '';
+    } else if (comparePanel) {
+      comparePanel.style.display = 'none';
+    }
+  }
+
   if (item.status === 'done' && item.result) {
+    compareBtn = document.createElement('button');
+    compareBtn.type = 'button';
+    compareBtn.className = 'queue-item__compare-btn';
+    compareBtn.setAttribute('aria-controls', comparePanelId);
+    compareBtn.setAttribute('aria-expanded', 'false');
+    compareBtn.textContent = 'Compare';
+    compareBtn.addEventListener('click', () => {
+      const current = compareOpen.get(item.id) ?? false;
+      setCompareOpen(!current);
+    });
+    actions.appendChild(compareBtn);
+
     const dlBtn = document.createElement('button');
     dlBtn.type = 'button';
     dlBtn.className = 'queue-item__download-btn';
     dlBtn.setAttribute('aria-label', `Download ${item.result.outName}`);
     dlBtn.textContent = 'Download';
-
     dlBtn.addEventListener('click', () => {
       if (!item.result) return;
       const url = URL.createObjectURL(item.result.blob);
@@ -168,81 +191,122 @@ export function createQueueItemEl(
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Revoke after a brief delay to allow the browser to start the download
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
-
     actions.appendChild(dlBtn);
   }
 
-  // Expand/collapse chevron button
-  const settingsPanelId = `settings-panel-${item.id}`;
-  const expandBtn = document.createElement('button');
-  expandBtn.type = 'button';
-  expandBtn.className = 'queue-item__expand';
-  expandBtn.setAttribute('aria-label', `Toggle settings for ${item.file.name}`);
-  expandBtn.setAttribute('aria-controls', settingsPanelId);
-
-  const isExpanded = expandedState.get(item.id) ?? false;
-  expandBtn.setAttribute('aria-expanded', String(isExpanded));
-  expandBtn.textContent = isExpanded ? '▾' : '▸';
-
-  // Remove button
   const removeBtn = document.createElement('button');
   removeBtn.className = 'queue-item__remove';
   removeBtn.type = 'button';
   removeBtn.setAttribute('aria-label', `Remove ${item.file.name}`);
   removeBtn.textContent = '×';
   removeBtn.addEventListener('click', () => {
-    URL.revokeObjectURL(objectUrl);
+    URL.revokeObjectURL(originalUrl);
+    compareOpen.delete(item.id);
     store.removeFile(item.id);
   });
 
   el.appendChild(thumb);
   el.appendChild(info);
+  if (savedBubble) el.appendChild(savedBubble);
   el.appendChild(badge);
   el.appendChild(actions);
-  el.appendChild(expandBtn);
   el.appendChild(removeBtn);
 
   wrapper.appendChild(el);
 
-  // Settings panel — created lazily on first expand
-  let settingsPanel: HTMLElement | null = null;
+  // Restore compare-panel open state across re-renders
+  if (compareOpen.get(item.id)) setCompareOpen(true);
 
-  function applyExpandState(expanded: boolean): void {
-    expandedState.set(item.id, expanded);
-    expandBtn.setAttribute('aria-expanded', String(expanded));
-    expandBtn.textContent = expanded ? '▾' : '▸';
-
-    if (expanded) {
-      if (!settingsPanel) {
-        settingsPanel = createSettingsPanel(store, item.id);
-        settingsPanel.id = settingsPanelId;
-        wrapper.appendChild(settingsPanel);
-      }
-      settingsPanel.style.display = '';
-    } else if (settingsPanel) {
-      settingsPanel.style.display = 'none';
-    }
-  }
-
-  // Apply initial state (restores open state across re-renders)
-  applyExpandState(isExpanded);
-
-  expandBtn.addEventListener('click', () => {
-    const current = expandedState.get(item.id) ?? false;
-    applyExpandState(!current);
-  });
-
-  // Cleanup object URL when element is removed from DOM
+  // Cleanup object URL when wrapper leaves the DOM
   const observer = new MutationObserver(() => {
     if (!document.contains(wrapper)) {
-      URL.revokeObjectURL(objectUrl);
+      URL.revokeObjectURL(originalUrl);
       observer.disconnect();
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
   return wrapper;
+}
+
+/** Before/after slider comparison panel. `before` is the original Blob URL; `after` is the result Blob. */
+function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'compare-panel';
+  panel.id = panelId;
+
+  const viewport = document.createElement('div');
+  viewport.className = 'compare-panel__viewport';
+
+  const afterUrl = URL.createObjectURL(afterBlob);
+
+  const afterImg = document.createElement('img');
+  afterImg.className = 'compare-panel__after';
+  afterImg.alt = 'Converted result';
+  afterImg.src = afterUrl;
+
+  const beforeClip = document.createElement('div');
+  beforeClip.className = 'compare-panel__before-clip';
+
+  const beforeImg = document.createElement('img');
+  beforeImg.className = 'compare-panel__before';
+  beforeImg.alt = 'Original';
+  beforeImg.src = beforeUrl;
+  beforeClip.appendChild(beforeImg);
+
+  const handle = document.createElement('div');
+  handle.className = 'compare-panel__handle';
+
+  viewport.appendChild(afterImg);
+  viewport.appendChild(beforeClip);
+  viewport.appendChild(handle);
+
+  viewport.style.setProperty('--split', '50%');
+
+  const labels = document.createElement('div');
+  labels.className = 'compare-panel__labels';
+  labels.innerHTML = `<span class="compare-panel__label">Original</span><span class="compare-panel__label">Converted</span>`;
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '100';
+  slider.value = '50';
+  slider.className = 'compare-panel__slider';
+  slider.setAttribute('aria-label', 'Compare slider: left is original, right is converted');
+
+  function setSplit(v: number): void {
+    const pct = Math.max(0, Math.min(100, v));
+    viewport.style.setProperty('--split', `${pct}%`);
+  }
+  slider.addEventListener('input', () => setSplit(Number(slider.value)));
+
+  // Drag on the viewport for more direct interaction
+  let dragging = false;
+  function handlePointer(e: PointerEvent): void {
+    const rect = viewport.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    slider.value = String(Math.round(pct));
+    setSplit(pct);
+  }
+  viewport.addEventListener('pointerdown', (e) => { dragging = true; handlePointer(e); });
+  window.addEventListener('pointerup', () => { dragging = false; });
+  window.addEventListener('pointermove', (e) => { if (dragging) handlePointer(e); });
+
+  panel.appendChild(labels);
+  panel.appendChild(viewport);
+  panel.appendChild(slider);
+
+  // Revoke the after URL when the panel is removed from the DOM
+  const obs = new MutationObserver(() => {
+    if (!document.contains(panel)) {
+      URL.revokeObjectURL(afterUrl);
+      obs.disconnect();
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+
+  return panel;
 }

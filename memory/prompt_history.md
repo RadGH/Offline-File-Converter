@@ -62,3 +62,11 @@ For scope: Don't worry about that. Use sub agents and repeat the work until comp
 
 Yes please start dev server and update each phase so I can test. You are in a VM and I have to connect via local IP so send me 192.168. links instead of localhost
 
+## 2026-04-24 00:54
+
+Let's hide .queue-controls unless you have more than 1 item in the queue. Once it shows, keep it visible. Move the "Drop images here" section above Default Settings box and keep the results box 2nd. Add credits "By Radley Sustaire" link to https://radleysustaire.com/ and leave Github link. Remove About link.  Hide the keyboard shortcuts button. 
+
+Fix if I drag and drop an image onto the "Drop images here" section it adds twice.
+
+Why is there a dropdown to show format/quality after uploading an image? It doesn't seem to do anything when I change those values. Can we just remove it to keep this super clean? I would also like to show the % saved in a more prominent bubble. Can we also have a "Compare" button next to "Download" which drops down like the currently menu and lets you compare before/after photo for quality?
+

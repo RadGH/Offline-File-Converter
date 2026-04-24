@@ -2,8 +2,11 @@
  * Phase 7 — Conversion Matrix Test Suite
  *
  * 7 inputs × 5 outputs = 35 test cases.
- * Each case: upload fixture → set format → wait for done → download → verify magic bytes + naturalWidth.
+ * Each case: set global default format → upload fixture → wait for done → download → verify magic bytes + naturalWidth.
  * Results written to test-results/matrix-results.jsonl for MATRIX.md generation.
+ *
+ * NOTE: Per-item settings panel removed. Format is set via GlobalDefaults
+ * BEFORE upload so new files inherit the chosen format.
  */
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'url';
@@ -89,7 +92,10 @@ function writeResult(result: MatrixResult): void {
   fs.appendFileSync(RESULTS_JSONL, JSON.stringify(result) + '\n', 'utf8');
 }
 
-/** Upload a file, set output format, wait for done, return the queue item locator. */
+/**
+ * Set global default format, upload a file, wait for done, return the queue item locator.
+ * Conversion begins immediately (autoStart is on).
+ */
 async function uploadAndConvert(
   page: Page,
   filePath: string,
@@ -104,9 +110,8 @@ async function uploadAndConvert(
     if (msg.type() === 'error') errors.push(msg.text());
   });
 
-  // Pause queue before upload so we can set format first
-  const pauseBtn = page.locator('.queue-controls__start-pause');
-  await pauseBtn.click();
+  // Set global default format before upload — new files inherit it
+  await page.locator('.global-defaults .settings-panel__select').first().selectOption(outputFormat);
 
   // Upload file
   const fileInput = page.locator('input[type="file"]');
@@ -115,14 +120,6 @@ async function uploadAndConvert(
   // Wait for queue item
   const queueItem = page.locator('.queue-item-wrapper').first();
   await expect(queueItem).toBeVisible({ timeout: 5000 });
-
-  // Open settings and pick format
-  await queueItem.locator('.queue-item__expand').click();
-  const formatSelect = queueItem.locator('.settings-panel__select').first();
-  await formatSelect.selectOption(outputFormat);
-
-  // Resume queue
-  await pauseBtn.click();
 
   // Wait for done badge
   try {

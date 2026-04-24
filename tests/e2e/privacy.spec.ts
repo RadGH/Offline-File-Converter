@@ -9,6 +9,9 @@
  *     navigation and throughout the conversion.
  *   - Allow only same-origin requests (localhost:5280 or 127.0.0.1:5280).
  *   - Assert the external request list is empty after conversion completes.
+ *
+ * NOTE: Per-item settings panel removed. Format is set via GlobalDefaults
+ * BEFORE upload so new files inherit the chosen format.
  */
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'url';
@@ -59,9 +62,8 @@ test.describe('Privacy — no external network requests during conversion', () =
 
     await page.goto('/');
 
-    // ── Pause the queue so we can choose WebP before processing starts ──
-    const startPauseBtn = page.locator('.queue-controls__start-pause');
-    await startPauseBtn.click();
+    // ── Set global default to WebP BEFORE upload ──
+    await page.locator('.global-defaults .settings-panel__select').first().selectOption('webp');
 
     // ── Upload the PNG fixture ──
     const fileInput = page.locator('input[type="file"]');
@@ -70,15 +72,7 @@ test.describe('Privacy — no external network requests during conversion', () =
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
 
-    // ── Select WebP output ──
-    await queueItem.locator('.queue-item__expand').click();
-    const formatSelect = queueItem.locator('.settings-panel__select').first();
-    await formatSelect.selectOption('webp');
-
-    // ── Resume — let the processor run ──
-    await startPauseBtn.click();
-
-    // ── Wait for "done" badge ──
+    // ── Wait for "done" badge (processor auto-starts) ──
     const doneBadge = queueItem.locator('.queue-item__badge--done');
     await expect(doneBadge).toBeVisible({ timeout: 30000 });
 
@@ -107,20 +101,14 @@ test.describe('Privacy — no external network requests during conversion', () =
 
     await page.goto('/');
 
-    const startPauseBtn = page.locator('.queue-controls__start-pause');
-    await startPauseBtn.click();
+    // ── Set global default to AVIF BEFORE upload ──
+    await page.locator('.global-defaults .settings-panel__select').first().selectOption('avif');
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(FIXTURE_PNG);
 
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
-
-    await queueItem.locator('.queue-item__expand').click();
-    const formatSelect = queueItem.locator('.settings-panel__select').first();
-    await formatSelect.selectOption('avif');
-
-    await startPauseBtn.click();
 
     const doneBadge = queueItem.locator('.queue-item__badge--done');
     await expect(doneBadge).toBeVisible({ timeout: 60000 });

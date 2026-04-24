@@ -97,10 +97,10 @@ const queueControls = createQueueControls(store, processor);
 const dropZone = createDropZone((files) => store.addFiles(files));
 const fileQueue = createFileQueue(store, processor);
 
-converterCol.appendChild(globalDefaults);
-converterCol.appendChild(queueControls);
 converterCol.appendChild(dropZone);
 converterCol.appendChild(fileQueue);
+converterCol.appendChild(queueControls);
+converterCol.appendChild(globalDefaults);
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 
@@ -110,17 +110,10 @@ footer.innerHTML = `
   <div class="site-footer__inner">
     <span class="site-footer__privacy">100% private &middot; No uploads &middot; No accounts</span>
     <div class="site-footer__links">
-      <a href="#" class="site-footer__link">About</a>
-      <a href="#" class="site-footer__link">GitHub</a>
+      <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
+      <a href="#" class="site-footer__link" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
-  <details class="site-footer__shortcuts">
-    <summary>Keyboard shortcuts</summary>
-    <ul class="site-footer__shortcuts-list">
-      <li><kbd>Space</kbd> — Start / pause the conversion queue</li>
-      <li><kbd>Esc</kbd> — Close all open settings panels</li>
-    </ul>
-  </details>
 `;
 
 app.appendChild(header);

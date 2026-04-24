@@ -4,6 +4,9 @@
  * Tests AVIF encode, GIF encode, and HEIC decode → PNG output.
  * Each test: uploads a sample fixture, waits for conversion to complete,
  * verifies the download blob has the correct MIME and naturalWidth > 0.
+ *
+ * NOTE: Per-item settings panel removed. Format is set via GlobalDefaults
+ * BEFORE upload so new files inherit the chosen format.
  */
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'url';
@@ -18,7 +21,10 @@ const FIXTURE_PNG = path.join(FIXTURES, 'sample.png');
 const FIXTURE_GIF = path.join(FIXTURES, 'sample.gif');
 const FIXTURE_HEIC = path.join(FIXTURES, 'sample.heic');
 
-/** Pause the queue, upload a file, change format, then resume and wait for done. */
+/**
+ * Set global default format, upload a file, wait for done.
+ * Conversion begins immediately (autoStart is on).
+ */
 async function convertFile(
   page: Page,
   filePath: string,
@@ -27,23 +33,14 @@ async function convertFile(
 ) {
   await page.goto('/');
 
-  // Pause so we can set format before processing starts
-  const startPauseBtn = page.locator('.queue-controls__start-pause');
-  await startPauseBtn.click();
+  // Set global default format before upload — new files inherit it
+  await page.locator('.global-defaults .settings-panel__select').first().selectOption(outputFormat);
 
   const fileInput = page.locator('input[type="file"]');
   await fileInput.setInputFiles(filePath);
 
   const queueItem = page.locator('.queue-item-wrapper').first();
   await expect(queueItem).toBeVisible({ timeout: 5000 });
-
-  // Open settings panel and select output format
-  await queueItem.locator('.queue-item__expand').click();
-  const formatSelect = queueItem.locator('.settings-panel__select').first();
-  await formatSelect.selectOption(outputFormat);
-
-  // Resume queue
-  await startPauseBtn.click();
 
   // Wait for done badge
   await expect(queueItem.locator('.queue-item__badge--done')).toBeVisible({ timeout: timeoutMs });

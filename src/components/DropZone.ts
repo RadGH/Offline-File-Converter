@@ -74,6 +74,7 @@ export function createDropZone(onFiles: (files: File[]) => void): HTMLElement {
 
   zone.addEventListener('drop', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     zone.classList.remove('drop-zone--over');
     handleFiles(e.dataTransfer?.files ?? null);
   });

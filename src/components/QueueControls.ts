@@ -107,10 +107,16 @@ export function createQueueControls(
 
   // ── State sync ────────────────────────────────────────────────────────────
 
+  let hasBeenShown = false;
+
   function syncUI(): void {
     const pState = processor.getState();
     const { items } = store.getState();
     const settings = store.getQueueSettings();
+
+    // Only show controls once the queue has more than 1 item. Once shown, stays visible.
+    if (items.length > 1) hasBeenShown = true;
+    panel.classList.toggle('queue-controls--hidden', !hasBeenShown);
 
     // Counts
     const doneCount = items.filter(i => i.status === 'done').length;

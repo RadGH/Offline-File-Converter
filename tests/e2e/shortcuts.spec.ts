@@ -1,6 +1,12 @@
 /**
  * Phase 9 — Keyboard shortcuts E2E tests.
  * Verifies Space toggles processor pause/resume.
+ *
+ * NOTE: The "Esc closes expanded settings panels" test was removed because
+ * per-item settings panels no longer exist (the expand chevron was removed).
+ *
+ * NOTE: Queue controls are hidden until >1 item is queued. Tests that interact
+ * with the start/pause button upload 2 files so the controls become visible.
  */
 
 import { test, expect } from '@playwright/test';
@@ -16,8 +22,13 @@ test.describe('Keyboard shortcuts', () => {
   test('Space on body pauses the running processor (button label changes)', async ({ page }) => {
     await page.goto('/');
 
-    // Processor starts running — button should say "Pause"
+    // Upload 2 files so queue-controls become visible (hidden until >1 item)
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles([FIXTURE_PNG, FIXTURE_PNG]);
+    await expect(page.locator('.queue-item')).toHaveCount(2, { timeout: 5_000 });
+
     const startPauseBtn = page.locator('.queue-controls__start-pause');
+    // Processor is running — button should say "Pause"
     await expect(startPauseBtn).toHaveText('Pause');
 
     // Ensure focus is on body (no input focused)
@@ -38,7 +49,11 @@ test.describe('Keyboard shortcuts', () => {
   test('Space does not toggle processor when focus is inside an input', async ({ page }) => {
     await page.goto('/');
 
-    // Processor starts running
+    // Upload 2 files so queue-controls become visible
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles([FIXTURE_PNG, FIXTURE_PNG]);
+    await expect(page.locator('.queue-item')).toHaveCount(2, { timeout: 5_000 });
+
     const startPauseBtn = page.locator('.queue-controls__start-pause');
     await expect(startPauseBtn).toHaveText('Pause');
 
@@ -51,26 +66,5 @@ test.describe('Keyboard shortcuts', () => {
 
     // Button should still say "Pause"
     await expect(startPauseBtn).toHaveText('Pause');
-  });
-
-  test('Esc closes expanded settings panels', async ({ page }) => {
-    await page.goto('/');
-
-    // Upload a file
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles([FIXTURE_PNG]);
-    await expect(page.locator('.queue-item')).toHaveCount(1, { timeout: 5_000 });
-
-    // Expand settings
-    const expandBtn = page.locator('.queue-item__expand').first();
-    await expandBtn.click();
-    await expect(expandBtn).toHaveAttribute('aria-expanded', 'true');
-
-    // Press Escape
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    await page.keyboard.press('Escape');
-
-    // Settings panel should be collapsed
-    await expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
   });
 });
