@@ -171,3 +171,15 @@ ort-wasm-simd-threaded.jsep.mjs:68 2026-04-24 09:58:06.452898 [W:onnxruntime:, s
 
 "Cannot read properties of null (reading 'Nd')"Cannot read properties of null (reading 'Nd')2026-04-24 10:06:48.933398 [W:onnxruntime:, session_state.cc:1327 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.
 
+## 2026-04-24 10:28
+
+I just gets stuck and makes no progress. No error now, just warnings:
+session.ts:77 env.wasm.numThreads is set to 4, but this will not work unless you enable crossOriginIsolated mode. See https://web.dev/cross-origin-isolation-guide/ for more info.
+
+session.ts:77 WebAssembly multi-threading is not supported in the current environment. Falling back to single-threading.
+﻿
+
+
+
+Can you test yourself with browser on github to ensure it works with upscale enabled?
+

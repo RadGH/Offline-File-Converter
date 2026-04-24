@@ -13,7 +13,7 @@ export interface UpscaleServices {
   /** Returns true when the model is cached and ready to run. */
   isModelReady: () => boolean;
   /** Run upscaling on a Blob. Caller picks scale factor. */
-  runUpscale: (blob: Blob, scale: 2 | 4) => Promise<Blob>;
+  runUpscale: (blob: Blob, scale: 2 | 4, onProgress?: (pct: number) => void) => Promise<Blob>;
 }
 
 /**
@@ -74,7 +74,11 @@ export async function convert(
   if (settings.upscale && options?.upscaleServices?.isModelReady()) {
     const factor: 4 = 4;
     onProgress?.(5);
-    const upscaledBlob = await options.upscaleServices.runUpscale(file, factor);
+    // Relay per-tile progress from the worker into the 5-70% range so the
+    // user sees movement during inference (upscaling dominates total time).
+    const upscaledBlob = await options.upscaleServices.runUpscale(file, factor, (pct) => {
+      onProgress?.(5 + Math.round((pct / 100) * 65));
+    });
     // Replace file with upscaled result; bump originalDimensions (if known)
     // by the scale factor so the subsequent resize step sees the new source.
     file = new File([upscaledBlob], file.name, { type: upscaledBlob.type || 'image/png' });

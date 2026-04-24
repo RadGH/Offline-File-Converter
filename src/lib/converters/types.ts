@@ -19,7 +19,7 @@ export interface ConversionResult {
 export interface ConvertOptions {
   upscaleServices?: {
     isModelReady: () => boolean;
-    runUpscale: (blob: Blob, scale: 2 | 4) => Promise<Blob>;
+    runUpscale: (blob: Blob, scale: 2 | 4, onProgress?: (pct: number) => void) => Promise<Blob>;
   };
   onUpscaled?: (factor: 2 | 4) => void;
 }

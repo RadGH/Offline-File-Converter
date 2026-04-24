@@ -24,7 +24,10 @@ const processor = createQueueProcessor({
   store,
   upscaleServices: {
     isModelReady: () => store.getModelStatus().kind === 'ready',
-    runUpscale: (blob, scale) => upscaleInWorker(blob, { scale }),
+    runUpscale: (blob, scale, onProgress) => {
+      toast.info(`Running AI upscaler (${scale}×)… this takes 30 s–3 min.`);
+      return upscaleInWorker(blob, { scale, onProgress });
+    },
   },
 });
 startDimensionDetection(store);

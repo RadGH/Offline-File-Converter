@@ -172,10 +172,11 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
   upscaleCheckbox.className = 'settings-panel__checkbox';
   upscaleCheckbox.id = 'global-upscale-checkbox';
   upscaleLabel.appendChild(upscaleCheckbox);
-  upscaleLabel.append(' Upscale with AI (when enlarging)');
+  upscaleLabel.append(' Upscale with AI (4×, slow)');
   upscaleLabel.title =
-    'When enabled, images that would be enlarged by resize are run through the AI ' +
-    'upscaler before resizing. If disabled, browser-native interpolation is used (fuzzier).';
+    'Runs the AI upscaler (4×) before resize/encode. Produces sharper results than ' +
+    'naive canvas scaling. Inference is single-threaded WASM — expect 30 s–3 min per ' +
+    'image depending on source size.';
   upscaleRow.appendChild(upscaleLabel);
 
   const upscaleHint = document.createElement('span');

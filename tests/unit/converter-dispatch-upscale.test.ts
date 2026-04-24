@@ -156,7 +156,7 @@ describe('convert() — upscale integration', () => {
       undefined,
       { upscaleServices: services },
     );
-    expect(runUpscaleMock).toHaveBeenCalledWith(expect.any(File), 4);
+    expect(runUpscaleMock).toHaveBeenCalledWith(expect.any(File), 4, expect.any(Function));
   });
 
   it('calls onUpscaled with factor=4 on every upscale', async () => {
