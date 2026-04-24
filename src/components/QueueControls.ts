@@ -5,6 +5,7 @@
 
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
+import { createDownloadZipButton } from '@/components/DownloadZipButton';
 
 export function createQueueControls(
   store: QueueStore,
@@ -87,9 +88,12 @@ export function createQueueControls(
   clearAllBtn.className = 'queue-controls__clear-all';
   clearAllBtn.textContent = 'Clear all';
 
+  const downloadZipBtn = createDownloadZipButton(store);
+
   actionsBar.appendChild(retryAllBtn);
   actionsBar.appendChild(clearCompletedBtn);
   actionsBar.appendChild(clearAllBtn);
+  actionsBar.appendChild(downloadZipBtn);
 
   panel.appendChild(statusBar);
   panel.appendChild(concurrencySection);
