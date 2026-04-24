@@ -70,3 +70,7 @@ Fix if I drag and drop an image onto the "Drop images here" section it adds twic
 
 Why is there a dropdown to show format/quality after uploading an image? It doesn't seem to do anything when I change those values. Can we just remove it to keep this super clean? I would also like to show the % saved in a more prominent bubble. Can we also have a "Compare" button next to "Download" which drops down like the currently menu and lets you compare before/after photo for quality?
 
+## 2026-04-24 01:21
+
+I want to try some different designs, can we try a /design2.html page with a modern design? You pick
+

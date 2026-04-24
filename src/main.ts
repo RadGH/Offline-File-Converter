@@ -110,6 +110,7 @@ footer.innerHTML = `
   <div class="site-footer__inner">
     <span class="site-footer__privacy">100% private &middot; No uploads &middot; No accounts</span>
     <div class="site-footer__links">
+      <a href="/design2.html" class="site-footer__link">Try Design 2</a>
       <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
       <a href="#" class="site-footer__link" target="_blank" rel="noopener">GitHub</a>
     </div>
