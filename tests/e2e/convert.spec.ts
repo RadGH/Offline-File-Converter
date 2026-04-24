@@ -1,3 +1,10 @@
+/**
+ * Phase 4 — Canvas converter E2E tests.
+ *
+ * NOTE (Phase 5 update): The per-item "Convert" button was removed in Phase 5.
+ * Conversions are now driven automatically by the queue processor.
+ * These tests upload a file and wait for the processor to complete it.
+ */
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -11,15 +18,19 @@ test.describe('Phase 4 — Canvas converter', () => {
   test('upload PNG, convert to WebP, download returns valid image', async ({ page }) => {
     await page.goto('/');
 
-    // ── 1. Upload the fixture via the hidden file input ──
+    // ── 1. Pause queue so we can set format before processing starts ──
+    const startPauseBtn = page.locator('.queue-controls__start-pause');
+    await startPauseBtn.click(); // toggles to paused
+
+    // ── 2. Upload the fixture via the hidden file input ──
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(FIXTURE_PNG);
 
-    // The queue item should appear with a Convert button
+    // The queue item should appear
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
 
-    // ── 2. Change format to webp via the settings panel ──
+    // ── 3. Change format to webp via the settings panel ──
     // Open the settings panel
     const expandBtn = queueItem.locator('.queue-item__expand');
     await expandBtn.click();
@@ -28,20 +39,18 @@ test.describe('Phase 4 — Canvas converter', () => {
     const formatSelect = queueItem.locator('.settings-panel__select').first();
     await formatSelect.selectOption('webp');
 
-    // ── 3. Click Convert ──
-    const convertBtn = queueItem.locator('.queue-item__convert-btn');
-    await expect(convertBtn).toBeVisible();
-    await convertBtn.click();
+    // ── 4. Resume queue — processor picks up the item ──
+    await startPauseBtn.click();
 
-    // ── 4. Wait for the Download button to appear ──
+    // ── 5. Wait for the Download button to appear ──
     const downloadBtn = queueItem.locator('.queue-item__download-btn');
     await expect(downloadBtn).toBeVisible({ timeout: 15000 });
 
-    // ── 5. Verify "done" badge ──
+    // ── 6. Verify "done" badge ──
     const badge = queueItem.locator('.queue-item__badge--done');
     await expect(badge).toBeVisible();
 
-    // ── 6. Capture the download and verify blob properties ──
+    // ── 7. Capture the download and verify blob properties ──
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       downloadBtn.click(),
@@ -76,20 +85,13 @@ test.describe('Phase 4 — Canvas converter', () => {
     const queueItem = page.locator('.queue-item-wrapper').first();
     await expect(queueItem).toBeVisible({ timeout: 5000 });
 
-    // Keep default format (jpeg) — no settings change needed
-    const convertBtn = queueItem.locator('.queue-item__convert-btn');
-    await expect(convertBtn).toBeVisible();
-    await convertBtn.click();
-
+    // Wait for the download button (processor auto-converts with default jpeg format)
     const downloadBtn = queueItem.locator('.queue-item__download-btn');
     await expect(downloadBtn).toBeVisible({ timeout: 15000 });
 
     // Use page.evaluate to decode the output blob from the store via a data URL
-    // We trigger download, intercept the object URL, and load it into an <img>
     const naturalWidth = await page.evaluate(async () => {
       return new Promise<number>((resolve) => {
-        // Find the download anchor that would be created and read its href
-        // We simulate a click and intercept via a global override of URL.createObjectURL
         let capturedUrl: string | null = null;
         const origCreate = URL.createObjectURL.bind(URL);
         URL.createObjectURL = (obj: Blob | MediaSource) => {
@@ -103,7 +105,6 @@ test.describe('Phase 4 — Canvas converter', () => {
 
         dlBtn.click();
 
-        // Wait a tick, then load the captured URL into an img
         setTimeout(() => {
           if (!capturedUrl) { resolve(-2); return; }
           const img = new Image();
@@ -124,9 +125,7 @@ test.describe('Phase 4 — Canvas converter', () => {
     await fileInput.setInputFiles(FIXTURE_PNG);
 
     const queueItem = page.locator('.queue-item-wrapper').first();
-    const convertBtn = queueItem.locator('.queue-item__convert-btn');
-    await expect(convertBtn).toBeVisible({ timeout: 5000 });
-    await convertBtn.click();
+    await expect(queueItem).toBeVisible({ timeout: 5000 });
 
     await expect(queueItem.locator('.queue-item__download-btn')).toBeVisible({ timeout: 15000 });
 
@@ -135,10 +134,15 @@ test.describe('Phase 4 — Canvas converter', () => {
     await expect(meta).toContainText('→');
   });
 
-  test('AVIF output shows not-yet-supported error', async ({ page }) => {
+  test('AVIF output shows not-yet-supported error (processor drives the attempt)', async ({ page }) => {
     await page.goto('/');
 
     const fileInput = page.locator('input[type="file"]');
+
+    // Pause queue before uploading so we can change format first
+    const startPauseBtn = page.locator('.queue-controls__start-pause');
+    await startPauseBtn.click(); // pause
+
     await fileInput.setInputFiles(FIXTURE_PNG);
 
     const queueItem = page.locator('.queue-item-wrapper').first();
@@ -149,12 +153,12 @@ test.describe('Phase 4 — Canvas converter', () => {
     const formatSelect = queueItem.locator('.settings-panel__select').first();
     await formatSelect.selectOption('avif');
 
-    const convertBtn = queueItem.locator('.queue-item__convert-btn');
-    await convertBtn.click();
+    // Resume — processor picks up the item
+    await startPauseBtn.click();
 
     // Should end up in error state
     const errorBadge = queueItem.locator('.queue-item__badge--error');
-    await expect(errorBadge).toBeVisible({ timeout: 5000 });
+    await expect(errorBadge).toBeVisible({ timeout: 10000 });
 
     const errMsg = queueItem.locator('.queue-item__error');
     await expect(errMsg).toContainText('not-yet-supported');

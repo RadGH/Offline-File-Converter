@@ -1,8 +1,8 @@
 import type { QueueItem as QueueItemData } from '@/lib/queue/store';
 import type { QueueStore } from '@/lib/queue/store';
+import type { QueueProcessor } from '@/lib/queue/processor';
 import { formatBytes } from '@/lib/utils/format-bytes';
 import { createSettingsPanel } from '@/components/SettingsPanel';
-import { convert } from '@/lib/converters/index';
 
 const STATUS_LABELS: Record<string, string> = {
   waiting: 'Waiting',
@@ -27,7 +27,8 @@ function formatSavedPct(originalSize: number, outSize: number): string {
 
 export function createQueueItemEl(
   item: QueueItemData,
-  store: QueueStore
+  store: QueueStore,
+  processor: QueueProcessor
 ): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.className = 'queue-item-wrapper';
@@ -93,41 +94,34 @@ export function createQueueItemEl(
   const actions = document.createElement('div');
   actions.className = 'queue-item__actions';
 
-  // Convert button — shown when waiting or error
-  if (item.status === 'waiting' || item.status === 'error') {
-    const convertBtn = document.createElement('button');
-    convertBtn.type = 'button';
-    convertBtn.className = 'queue-item__convert-btn';
-    convertBtn.setAttribute('aria-label', `Convert ${item.file.name}`);
-    convertBtn.textContent = 'Convert';
+  // Cancel button — shown when waiting or processing
+  if (item.status === 'waiting' || item.status === 'processing') {
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'queue-item__cancel-btn';
+    cancelBtn.setAttribute('aria-label', `Cancel ${item.file.name}`);
+    cancelBtn.textContent = 'Cancel';
 
-    convertBtn.addEventListener('click', async () => {
-      store.setStatus(item.id, 'processing');
-      store.setProgress(item.id, 0);
-
-      try {
-        const result = await convert(
-          {
-            file: item.file,
-            settings: item.settings,
-            originalDimensions: item.originalDimensions,
-          },
-          (pct) => store.setProgress(item.id, pct)
-        );
-
-        store.setResult(item.id, {
-          blob: result.blob,
-          outName: result.outName,
-          outSize: result.outSize,
-        });
-        // setResult already sets status to 'done' and progress to 100
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        store.setError(item.id, msg);
-      }
+    cancelBtn.addEventListener('click', () => {
+      processor.cancelItem(item.id);
     });
 
-    actions.appendChild(convertBtn);
+    actions.appendChild(cancelBtn);
+  }
+
+  // Retry button — shown when error or cancelled
+  if (item.status === 'error' || item.status === 'cancelled') {
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'queue-item__retry-btn';
+    retryBtn.setAttribute('aria-label', `Retry ${item.file.name}`);
+    retryBtn.textContent = 'Retry';
+
+    retryBtn.addEventListener('click', () => {
+      processor.retryItem(item.id);
+    });
+
+    actions.appendChild(retryBtn);
   }
 
   // Download button — shown when done

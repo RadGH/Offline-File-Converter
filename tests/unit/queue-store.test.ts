@@ -209,3 +209,61 @@ describe('createQueueStore', () => {
     expect(store.getState().items[0].originalDimensions).toEqual({ width: 200, height: 150 });
   });
 });
+
+describe('queueSettings', () => {
+  it('has default concurrency=2 and autoStart=true', () => {
+    const store = createQueueStore();
+    const settings = store.getQueueSettings();
+    expect(settings.concurrency).toBe(2);
+    expect(settings.autoStart).toBe(true);
+  });
+
+  it('getQueueSettings returns current settings', () => {
+    const store = createQueueStore();
+    expect(store.getQueueSettings()).toEqual({ concurrency: 2, autoStart: true });
+  });
+
+  it('setQueueSettings updates concurrency', () => {
+    const store = createQueueStore();
+    store.setQueueSettings({ concurrency: 4 });
+    expect(store.getQueueSettings().concurrency).toBe(4);
+  });
+
+  it('setQueueSettings updates autoStart', () => {
+    const store = createQueueStore();
+    store.setQueueSettings({ autoStart: false });
+    expect(store.getQueueSettings().autoStart).toBe(false);
+  });
+
+  it('setQueueSettings merges partial patch (does not wipe other fields)', () => {
+    const store = createQueueStore();
+    store.setQueueSettings({ concurrency: 5 });
+    expect(store.getQueueSettings().autoStart).toBe(true); // unchanged
+    store.setQueueSettings({ autoStart: false });
+    expect(store.getQueueSettings().concurrency).toBe(5); // unchanged
+  });
+
+  it('setQueueSettings is reflected in getState()', () => {
+    const store = createQueueStore();
+    store.setQueueSettings({ concurrency: 3 });
+    expect(store.getState().queueSettings.concurrency).toBe(3);
+  });
+
+  it('setQueueSettings notifies subscribers', () => {
+    const store = createQueueStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setQueueSettings({ concurrency: 1 });
+    expect(listener).toHaveBeenCalledTimes(1);
+    const state = listener.mock.calls[0][0] as ReturnType<typeof store.getState>;
+    expect(state.queueSettings.concurrency).toBe(1);
+  });
+
+  it('setQueueSettings clamps to valid range (store does not enforce, but default is reasonable)', () => {
+    const store = createQueueStore();
+    store.setQueueSettings({ concurrency: 8 });
+    expect(store.getQueueSettings().concurrency).toBe(8);
+    store.setQueueSettings({ concurrency: 1 });
+    expect(store.getQueueSettings().concurrency).toBe(1);
+  });
+});

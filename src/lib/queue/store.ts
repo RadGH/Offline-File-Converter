@@ -35,9 +35,15 @@ export interface QueueItem {
   originalDimensions?: OriginalDimensions;
 }
 
+export interface QueueSettings {
+  concurrency: number;
+  autoStart: boolean;
+}
+
 export interface QueueState {
   items: QueueItem[];
   globalDefaults: PerFileSettings;
+  queueSettings: QueueSettings;
 }
 
 export type Listener = (state: QueueState) => void;
@@ -57,6 +63,8 @@ export interface QueueStore {
   setResult: (id: string, result: QueueItemResult) => void;
   setError: (id: string, error: string) => void;
   setOriginalDimensions: (id: string, dims: OriginalDimensions) => void;
+  setQueueSettings: (patch: Partial<QueueSettings>) => void;
+  getQueueSettings: () => QueueSettings;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
@@ -68,10 +76,16 @@ const DEFAULT_SETTINGS: PerFileSettings = {
   stripMetadata: true,
 };
 
+const DEFAULT_QUEUE_SETTINGS: QueueSettings = {
+  concurrency: 2,
+  autoStart: true,
+};
+
 export function createQueueStore(): QueueStore {
   let state: QueueState = {
     items: [],
     globalDefaults: { ...DEFAULT_SETTINGS },
+    queueSettings: { ...DEFAULT_QUEUE_SETTINGS },
   };
 
   const listeners = new Set<Listener>();
@@ -195,6 +209,18 @@ export function createQueueStore(): QueueStore {
     notify();
   }
 
+  function setQueueSettings(patch: Partial<QueueSettings>): void {
+    state = {
+      ...state,
+      queueSettings: { ...state.queueSettings, ...patch },
+    };
+    notify();
+  }
+
+  function getQueueSettings(): QueueSettings {
+    return state.queueSettings;
+  }
+
   return {
     getState,
     subscribe,
@@ -210,5 +236,7 @@ export function createQueueStore(): QueueStore {
     setResult,
     setError,
     setOriginalDimensions,
+    setQueueSettings,
+    getQueueSettings,
   };
 }

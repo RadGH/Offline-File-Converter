@@ -1,7 +1,8 @@
 import type { QueueStore } from '@/lib/queue/store';
+import type { QueueProcessor } from '@/lib/queue/processor';
 import { createQueueItemEl } from '@/components/QueueItem';
 
-export function createFileQueue(store: QueueStore): HTMLElement {
+export function createFileQueue(store: QueueStore, processor: QueueProcessor): HTMLElement {
   const container = document.createElement('div');
   container.className = 'file-queue';
 
@@ -25,7 +26,7 @@ export function createFileQueue(store: QueueStore): HTMLElement {
       emptyMsg.style.display = 'none';
       list.style.display = '';
       items.forEach(item => {
-        list.appendChild(createQueueItemEl(item, store));
+        list.appendChild(createQueueItemEl(item, store, processor));
       });
     }
   }
