@@ -6,3 +6,7 @@ playwright-report/
 test-results/
 coverage/
 .vite/
+
+# Parent monorepo gitignores **/package-lock.json, but the standalone repo
+# needs it for reproducible CI installs (`npm ci`). Negate for this subtree.
+!package-lock.json
