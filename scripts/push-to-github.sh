@@ -28,7 +28,7 @@ TOKEN=$(tr -d '[:space:]' < "${TOKEN_FILE}")
 git branch -D "${BRANCH_NAME}" 2>/dev/null || true
 git subtree split --prefix="${SUBTREE_PREFIX}" -b "${BRANCH_NAME}"
 
-git push "https://${TOKEN}@${REMOTE_REPO}" "${BRANCH_NAME}:main" \
+git push --force "https://${TOKEN}@${REMOTE_REPO}" "${BRANCH_NAME}:main" \
   2>&1 | sed "s|${TOKEN}|***|g"
 
 git branch -D "${BRANCH_NAME}"
