@@ -183,3 +183,7 @@ session.ts:77 WebAssembly multi-threading is not supported in the current enviro
 
 Can you test yourself with browser on github to ensure it works with upscale enabled?
 
+## 2026-04-24 10:52
+
+I don't mind if it takes awhile. Is it possible to show an ETA or progress bar, separate from the current one, specific to upscaling? If not, can we take a guess based on the pixel size of the image and the realistic timing chart you sent?
+

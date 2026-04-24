@@ -50,7 +50,12 @@ export interface UpscaleServices {
 export async function convert(
   input: ConversionInput,
   onProgress?: (pct: number) => void,
-  options?: { upscaleServices?: UpscaleServices; onUpscaled?: (factor: 2 | 4) => void },
+  options?: {
+    upscaleServices?: UpscaleServices;
+    onUpscaled?: (factor: 2 | 4) => void;
+    onUpscaleStart?: () => void;
+    onUpscaleEnd?: () => void;
+  },
 ): Promise<ConversionResult> {
   let { file, settings } = input;
   let { originalDimensions } = input;
@@ -74,11 +79,13 @@ export async function convert(
   if (settings.upscale && options?.upscaleServices?.isModelReady()) {
     const factor: 4 = 4;
     onProgress?.(5);
+    options.onUpscaleStart?.();
     // Relay per-tile progress from the worker into the 5-70% range so the
     // user sees movement during inference (upscaling dominates total time).
     const upscaledBlob = await options.upscaleServices.runUpscale(file, factor, (pct) => {
       onProgress?.(5 + Math.round((pct / 100) * 65));
     });
+    options.onUpscaleEnd?.();
     // Replace file with upscaled result; bump originalDimensions (if known)
     // by the scale factor so the subsequent resize step sees the new source.
     file = new File([upscaledBlob], file.name, { type: upscaledBlob.type || 'image/png' });
@@ -89,7 +96,8 @@ export async function convert(
       };
     }
     options.onUpscaled?.(factor);
-    onProgress?.(30);
+    // (Do not reset onProgress here — keep climbing from 70% into the
+    // resize/encode phase below.)
   }
 
   // ── Output format routing ───────────────────────────────────────────────────

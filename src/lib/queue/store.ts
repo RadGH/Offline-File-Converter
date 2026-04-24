@@ -56,6 +56,9 @@ export interface QueueItem {
   originalDimensions?: OriginalDimensions;
   /** Set after processing when AI upscaling was applied. */
   upscaledBy?: 2 | 4;
+  /** ms timestamp when AI upscale started, if currently in-flight.
+   *  Cleared when upscale finishes or errors. */
+  upscaleStartedAt?: number;
 }
 
 // ── Upscale model status ──────────────────────────────────────────────────────
@@ -107,6 +110,7 @@ export interface QueueStore {
   setUpscaleCapability: (c: UpscaleCapabilityValue) => void;
   getUpscaleCapability: () => UpscaleCapabilityValue;
   setUpscaledBy: (id: string, factor: 2 | 4) => void;
+  setUpscaleStartedAt: (id: string, t: number | undefined) => void;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
@@ -318,6 +322,16 @@ export function createQueueStore(): QueueStore {
     notify();
   }
 
+  function setUpscaleStartedAt(id: string, t: number | undefined): void {
+    state = {
+      ...state,
+      items: state.items.map(item =>
+        item.id === id ? { ...item, upscaleStartedAt: t } : item
+      ),
+    };
+    notify();
+  }
+
   return {
     getState,
     subscribe,
@@ -340,5 +354,6 @@ export function createQueueStore(): QueueStore {
     setUpscaleCapability,
     getUpscaleCapability,
     setUpscaledBy,
+    setUpscaleStartedAt,
   };
 }

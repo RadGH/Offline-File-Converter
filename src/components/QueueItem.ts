@@ -27,6 +27,24 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+/** Estimate upscale duration from image dimensions.
+ *  Baseline: ~11s per 224x224 tile on single-threaded WASM. */
+function estimateUpscaleTotalMs(item: QueueItemData): number {
+  const dims = item.originalDimensions;
+  if (!dims) return 60_000;
+  const step = 224; // 256 tile minus 32 overlap
+  const tiles = Math.max(1, Math.ceil(dims.width / step)) * Math.max(1, Math.ceil(dims.height / step));
+  return tiles * 11_000;
+}
+
+function formatDuration(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r === 0 ? `${m}m` : `${m}m ${r}s`;
+}
+
 /** Tracks which items have their compare panel open. */
 const compareOpen = new Map<string, boolean>();
 
@@ -115,6 +133,54 @@ export function createQueueItemEl(
   progressFill.style.width = `${item.progress}%`;
   progressBar.appendChild(progressFill);
   info.appendChild(progressBar);
+
+  // Dedicated upscale progress bar + ETA while inference is in flight.
+  if (item.status === 'processing' && item.upscaleStartedAt) {
+    const upscaleWrap = document.createElement('div');
+    upscaleWrap.className = 'queue-item__upscale-row';
+
+    const upBar = document.createElement('div');
+    upBar.className = 'queue-item__upscale-bar';
+    const upFill = document.createElement('div');
+    upFill.className = 'queue-item__upscale-fill';
+    upBar.appendChild(upFill);
+
+    const etaText = document.createElement('span');
+    etaText.className = 'queue-item__upscale-eta';
+
+    upscaleWrap.appendChild(upBar);
+    upscaleWrap.appendChild(etaText);
+    info.appendChild(upscaleWrap);
+
+    const startedAt = item.upscaleStartedAt;
+    function refreshEta(): void {
+      const elapsed = Date.now() - startedAt;
+      const pctPhase = Math.max(0, Math.min(1, (item.progress - 5) / 65));
+      const baselineTotal = estimateUpscaleTotalMs(item);
+      // Once ≥10% through, trust the actual rate; otherwise use the baseline.
+      const estTotal = pctPhase > 0.1 ? elapsed / pctPhase : baselineTotal;
+      const remaining = Math.max(0, estTotal - elapsed);
+      const pctDisplay = Math.min(100, Math.round((elapsed / estTotal) * 100));
+      upFill.style.width = `${pctDisplay}%`;
+      etaText.textContent =
+        remaining < 1000
+          ? `↑ Finalising upscale…`
+          : `↑ Upscaling · ~${formatDuration(remaining)} remaining · ${formatDuration(elapsed)} elapsed`;
+      upBar.setAttribute('aria-valuenow', String(pctDisplay));
+    }
+    refreshEta();
+
+    // Tick every second so the countdown feels alive between progress events.
+    const tickId = window.setInterval(refreshEta, 1000);
+    // Clear when the wrapper is dropped from the DOM by the next FileQueue render.
+    const obs = new MutationObserver(() => {
+      if (!document.contains(wrapper)) {
+        clearInterval(tickId);
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
 
   if (item.error) {
     const errMsg = document.createElement('span');

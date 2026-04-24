@@ -142,6 +142,8 @@ export function createQueueProcessor(opts: ProcessorOptions): QueueProcessor {
       {
         upscaleServices,
         onUpscaled: (factor) => store.setUpscaledBy(id, factor),
+        onUpscaleStart: () => store.setUpscaleStartedAt(id, Date.now()),
+        onUpscaleEnd: () => store.setUpscaleStartedAt(id, undefined),
       },
     )
       .then(result => {
