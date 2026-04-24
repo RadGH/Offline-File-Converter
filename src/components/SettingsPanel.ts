@@ -142,11 +142,32 @@ export function createSettingsPanel(store: QueueStore, itemId: string): HTMLElem
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.appendChild(stripLabel);
 
+  // ── PNG Optimize row ────────────────────────────────────────────────────────
+  const pngOptimizeRow = document.createElement('div');
+  pngOptimizeRow.className = 'settings-panel__row';
+
+  const pngOptimizeLabel = document.createElement('label');
+  pngOptimizeLabel.className = 'settings-panel__field settings-panel__field--checkbox';
+
+  const pngOptimizeCheckbox = document.createElement('input');
+  pngOptimizeCheckbox.type = 'checkbox';
+  pngOptimizeCheckbox.className = 'settings-panel__checkbox';
+
+  pngOptimizeLabel.appendChild(pngOptimizeCheckbox);
+  pngOptimizeLabel.append(' Optimize PNG (slower, smaller)');
+  pngOptimizeRow.appendChild(pngOptimizeLabel);
+
+  const pngOptimizeHelp = document.createElement('p');
+  pngOptimizeHelp.className = 'settings-panel__help';
+  pngOptimizeHelp.textContent = 'Uses UPNG for extra compression. Adds 1–3s per file.';
+  pngOptimizeRow.appendChild(pngOptimizeHelp);
+
   panel.appendChild(formatRow);
   panel.appendChild(qualityRow);
   panel.appendChild(dimsRow);
   panel.appendChild(aspectRow);
   panel.appendChild(stripRow);
+  panel.appendChild(pngOptimizeRow);
 
   // ── Sync helpers ────────────────────────────────────────────────────────────
 
@@ -180,6 +201,10 @@ export function createSettingsPanel(store: QueueStore, itemId: string): HTMLElem
 
     aspectCheckbox.checked = settings.maintainAspect;
     stripCheckbox.checked = settings.stripMetadata;
+
+    const isPng = settings.format === 'png';
+    pngOptimizeRow.style.display = isPng ? '' : 'none';
+    pngOptimizeCheckbox.checked = settings.pngOptimize;
   }
 
   // Initial render
@@ -273,6 +298,10 @@ export function createSettingsPanel(store: QueueStore, itemId: string): HTMLElem
 
   stripCheckbox.addEventListener('change', () => {
     store.updateFileSettings(itemId, { stripMetadata: stripCheckbox.checked });
+  });
+
+  pngOptimizeCheckbox.addEventListener('change', () => {
+    store.updateFileSettings(itemId, { pngOptimize: pngOptimizeCheckbox.checked });
   });
 
   return panel;

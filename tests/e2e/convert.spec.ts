@@ -134,7 +134,7 @@ test.describe('Phase 4 — Canvas converter', () => {
     await expect(meta).toContainText('→');
   });
 
-  test('AVIF output shows not-yet-supported error (processor drives the attempt)', async ({ page }) => {
+  test('AVIF output converts successfully (Phase 6)', async ({ page }) => {
     await page.goto('/');
 
     const fileInput = page.locator('input[type="file"]');
@@ -156,11 +156,11 @@ test.describe('Phase 4 — Canvas converter', () => {
     // Resume — processor picks up the item
     await startPauseBtn.click();
 
-    // Should end up in error state
-    const errorBadge = queueItem.locator('.queue-item__badge--error');
-    await expect(errorBadge).toBeVisible({ timeout: 10000 });
+    // Should end up in done state (AVIF encoder is now wired)
+    const doneBadge = queueItem.locator('.queue-item__badge--done');
+    await expect(doneBadge).toBeVisible({ timeout: 30000 });
 
-    const errMsg = queueItem.locator('.queue-item__error');
-    await expect(errMsg).toContainText('not-yet-supported');
+    const downloadBtn = queueItem.locator('.queue-item__download-btn');
+    await expect(downloadBtn).toBeVisible();
   });
 });

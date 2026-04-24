@@ -21,4 +21,12 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  // Exclude WASM-based packages from Vite's pre-bundling so their own
+  // WASM asset URLs resolve correctly at runtime via the module's internal
+  // fetch() paths rather than through Vite's optimized bundle.
+  optimizeDeps: {
+    exclude: ['@jsquash/avif'],
+  },
+  // Ensure .wasm files are served with the correct MIME type
+  assetsInclude: ['**/*.wasm'],
 });

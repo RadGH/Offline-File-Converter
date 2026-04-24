@@ -11,6 +11,8 @@ export interface PerFileSettings {
   height: number | null;
   maintainAspect: boolean;
   stripMetadata: boolean;
+  /** Only applies when format === 'png'. Runs UPNG optimizer after canvas encode. */
+  pngOptimize: boolean;
 }
 
 export interface QueueItemResult {
@@ -74,6 +76,7 @@ const DEFAULT_SETTINGS: PerFileSettings = {
   height: null,
   maintainAspect: true,
   stripMetadata: true,
+  pngOptimize: false,
 };
 
 const DEFAULT_QUEUE_SETTINGS: QueueSettings = {

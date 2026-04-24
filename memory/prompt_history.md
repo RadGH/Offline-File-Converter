@@ -58,3 +58,7 @@ For scope: Don't worry about that. Use sub agents and repeat the work until comp
 1. Can deviate from plan to match existing systems, the MD file is just a reference. Prefer to match the same tools used in ../game13 and ../wp
 2. Use what we already have, I like apache. IDK about pnpm build tools so maybe do npm or something idk you decide. Keep it simple. But if pnpm is faster or beneficial, go ahead.
 
+## 2026-04-23 23:54
+
+Yes please start dev server and update each phase so I can test. You are in a VM and I have to connect via local IP so send me 192.168. links instead of localhost
+

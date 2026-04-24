@@ -166,6 +166,47 @@ test.describe('Settings panel', () => {
     await expect(globalBody).toBeVisible();
   });
 
+  test('PNG optimize checkbox: visible for PNG, hidden for WebP, persisted after rerender', async ({ page }) => {
+    const input = page.locator('input[type="file"]');
+    await input.setInputFiles([
+      { name: 'test.png', mimeType: 'image/png', buffer: TWO_BY_ONE_PNG },
+    ]);
+
+    await page.locator('.queue-item__expand').click();
+    await expect(page.locator('.settings-panel')).toBeVisible();
+
+    const formatSelect = page.locator('.settings-panel .settings-panel__select');
+
+    // Start on default (jpeg) — optimize row should be hidden
+    await expect(page.locator('.settings-panel .settings-panel__row').filter({ hasText: 'Optimize PNG' })).toBeHidden();
+
+    // Switch to PNG — row should appear
+    await formatSelect.selectOption('png');
+    const pngOptimizeRow = page.locator('.settings-panel .settings-panel__row').filter({ hasText: 'Optimize PNG' });
+    await expect(pngOptimizeRow).toBeVisible();
+
+    // The checkbox starts unchecked (default pngOptimize: false)
+    const pngOptimizeCheckbox = pngOptimizeRow.locator('input[type="checkbox"]');
+    await expect(pngOptimizeCheckbox).not.toBeChecked();
+
+    // Toggle it on
+    await pngOptimizeCheckbox.check();
+    await expect(pngOptimizeCheckbox).toBeChecked();
+
+    // Trigger a store-driven rerender by toggling quality (format is PNG so slider is disabled;
+    // use strip metadata checkbox instead to force a notify cycle)
+    const stripCheckbox = page.locator('.settings-panel .settings-panel__checkbox').nth(1);
+    await stripCheckbox.uncheck();
+    await stripCheckbox.check();
+
+    // pngOptimize should still be checked after rerender
+    await expect(pngOptimizeCheckbox).toBeChecked();
+
+    // Switch to WebP — optimize row must hide again
+    await formatSelect.selectOption('webp');
+    await expect(pngOptimizeRow).toBeHidden();
+  });
+
   test('global defaults does not affect existing queue items', async ({ page }) => {
     const input = page.locator('input[type="file"]');
     await input.setInputFiles([
