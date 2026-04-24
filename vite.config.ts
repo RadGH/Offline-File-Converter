@@ -12,12 +12,6 @@ export default defineConfig({
     assetsDir: 'assets',
     target: 'es2022',
     sourcemap: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        design2: resolve(__dirname, 'design2.html'),
-      },
-    },
   },
   resolve: {
     alias: {

@@ -74,3 +74,19 @@ Why is there a dropdown to show format/quality after uploading an image? It does
 
 I want to try some different designs, can we try a /design2.html page with a modern design? You pick
 
+## 2026-04-24 01:34
+
+We appear to be part of hte parent dir git repo. Can we push this project to a separate branch without interfering with the other repo?
+
+## 2026-04-24 01:34
+
+We appear to be part of hte parent dir git repo. Can we push this project to a separate repo without interfering with the other repo?
+
+## 2026-04-24 01:35
+
+https://github.com/RadGH/Offline-File-Converter
+
+## 2026-04-24 01:40
+
+This doesn't look right. Also let's keep redesign2.html as the main index.html, the old one can be removed. https://radgh.github.io/Offline-File-Converter/
+
