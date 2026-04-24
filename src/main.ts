@@ -7,6 +7,10 @@ import { createQueueStore } from '@/lib/queue/store';
 import { createQueueProcessor } from '@/lib/queue/processor';
 import { startDimensionDetection } from '@/lib/queue/detect-dimensions';
 import { toast } from '@/components/Toast';
+import { initConsent } from '@/lib/consent';
+import { maybeShowConsentBanner, openConsentBanner } from '@/components/ConsentBanner';
+
+initConsent();
 
 const store = createQueueStore();
 const processor = createQueueProcessor({
@@ -50,7 +54,7 @@ hero.innerHTML = `
   <div class="site-header__inner">
     <div class="d2-pill">
       <span class="d2-pill__dot"></span>
-      100% client-side · No uploads
+      Client-side conversion · No file uploads
     </div>
     <h1>
       Convert &amp; compress images
@@ -94,17 +98,26 @@ const footer = document.createElement('footer');
 footer.className = 'site-footer';
 footer.innerHTML = `
   <div class="site-footer__inner">
-    <span>100% private · No uploads · No accounts</span>
+    <span>Files processed in your browser · No uploads · No accounts</span>
     <nav class="site-footer__links">
+      <a href="/privacy.html" class="site-footer__link">Privacy</a>
+      <a href="#" class="site-footer__link" data-action="manage-cookies">Manage cookies</a>
       <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
       <a href="https://github.com/RadGH/Offline-File-Converter" class="site-footer__link" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </div>
 `;
 
+footer.querySelector<HTMLAnchorElement>('[data-action="manage-cookies"]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openConsentBanner();
+});
+
 app.appendChild(hero);
 app.appendChild(main);
 app.appendChild(footer);
+
+maybeShowConsentBanner();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e: KeyboardEvent) => {

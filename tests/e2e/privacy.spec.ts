@@ -36,7 +36,6 @@ function isAllowedOrigin(url: string): boolean {
     const origin = `${parsed.protocol}//${parsed.host}`;
     return ALLOWED_ORIGINS.has(origin);
   } catch {
-    // Malformed URL — treat as disallowed to be safe.
     return false;
   }
 }

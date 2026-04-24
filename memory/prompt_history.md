@@ -90,3 +90,17 @@ https://github.com/RadGH/Offline-File-Converter
 
 This doesn't look right. Also let's keep redesign2.html as the main index.html, the old one can be removed. https://radgh.github.io/Offline-File-Converter/
 
+## 2026-04-24 01:48
+
+Add to <head>:
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QDQRJQ2WD4"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-QDQRJQ2WD4');
+</script>
+
