@@ -268,3 +268,7 @@ I also have some files in /home/radgh/claude/assets/references/convert where fra
 
 On mobile fix the footer it should not use multi column layout
 
+## 2026-04-25 13:35
+
+On mobile header remove “files stay on your device” and “100% local” to clean up. too cramped header
+

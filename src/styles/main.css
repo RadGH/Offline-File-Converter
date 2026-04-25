@@ -1256,6 +1256,12 @@ body {
     flex: 0 0 auto;
   }
 
+  /* Header: hide secondary copy on mobile to keep it uncluttered. */
+  .rd-header__tagline,
+  .rd-header__badge {
+    display: none;
+  }
+
   /* Footer: stack into a single column on mobile so links don't get cut off. */
   .rd-footer {
     height: auto;
