@@ -264,3 +264,7 @@ I also have some files in /home/radgh/claude/assets/references/convert where fra
 4. Written .md report I can review on github
 5. Those features plus also a section about each file format supported and their key differences/benefits
 
+## 2026-04-25 13:32
+
+On mobile fix the footer it should not use multi column layout
+
