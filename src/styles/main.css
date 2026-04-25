@@ -1306,3 +1306,89 @@ body {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
+
+/* ── Header right group ────────────────────────────────────────────────── */
+.rd-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* ── Theme toggle button ───────────────────────────────────────────────── */
+.rd-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-med);
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.rd-theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--cream-3);
+}
+
+.rd-theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.rd-theme-toggle:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(224, 120, 86, 0.25);
+}
+
+/* ── Dark theme overrides ──────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Warm dark palette — ink-on-cream becomes cream-on-ink */
+  --cream:        #231f1c;
+  --cream-2:      #1c1916;
+  --cream-3:      #2d2823;
+  --sand:         #5a4d3f;
+  --sand-light:   #3a322b;
+
+  --text:         #ede4d6;
+  --text-muted:   #b9ab9d;
+  --text-dim:     #897e72;
+
+  --accent:       #ec8b6a;
+  --accent-hover: #f5a181;
+  --accent-text:  #1a1614;
+
+  --sage:         #8aa890;
+  --sage-light:   #303d33;
+  --sage-text:    #c5d6c8;
+
+  --danger:       #e88a7e;
+  --danger-bg:    #3a2826;
+  --warn-bg:      #3a3326;
+
+  --border:       rgba(240, 220, 195, 0.10);
+  --border-med:   rgba(240, 220, 195, 0.22);
+
+  --shadow-card:  0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-drop:  0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Body background gets a hint of warmth in dark mode too */
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(ellipse at top, rgba(224, 120, 86, 0.05), transparent 50%),
+    var(--cream);
+}
+
+/* Selection contrast bump for dark mode */
+:root[data-theme="dark"] ::selection {
+  background: rgba(236, 139, 106, 0.4);
+  color: var(--text);
+}

@@ -10,7 +10,10 @@ import { startDimensionDetection } from '@/lib/queue/detect-dimensions';
 import { toast } from '@/components/Toast';
 import { initConsent } from '@/lib/consent';
 import { maybeShowConsentBanner, openConsentBanner } from '@/components/ConsentBanner';
+import { initTheme } from '@/lib/theme';
+import { createThemeToggle } from '@/components/ThemeToggle';
 
+initTheme();
 initConsent();
 
 const store = createQueueStore();
@@ -72,8 +75,11 @@ header.innerHTML = `
     <span class="rd-header__logo">Image Converter</span>
     <span class="rd-header__tagline">files stay on your device</span>
   </div>
-  <span class="rd-header__badge">100% Local</span>
+  <div class="rd-header__right">
+    <span class="rd-header__badge">100% Local</span>
+  </div>
 `;
+header.querySelector('.rd-header__right')?.appendChild(createThemeToggle());
 
 // Main grid
 const main = document.createElement('main');

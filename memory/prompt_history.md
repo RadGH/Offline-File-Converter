@@ -246,3 +246,7 @@ I changed Mode to Manual, selected a file, and it was automatically converted. I
 Move Resample below Strip Metadata in order to keep the 3 checkboxes together.
 Resample should only show when applicable. It should not show for PNG for example. If Quality slider is disabled, just hide it, and only show the text "Lossless" instead.
 
+## 2026-04-25 12:23
+
+Add a button to toggle dark/light mode and set to browser preference by default. Could be placed in the footer or near the 100% local badge in the corner, wherever makes the most sense
+
