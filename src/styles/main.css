@@ -1592,17 +1592,29 @@ body {
   padding-top: 1rem;
 }
 
-/* Mobile: fullscreen-ish modal */
+/* Mobile: full-screen modal — title + close stay sticky at the top, content
+   scrolls underneath. Avoids the "modal floats too far down" issue. */
 @media (max-width: 600px) {
   .rd-modal-backdrop {
     padding: 0;
-    align-items: flex-end;
+    align-items: stretch;
+    justify-content: stretch;
   }
 
   .rd-modal {
     max-width: 100%;
-    max-height: 92dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .rd-modal__header {
+    /* Already `flex: 0 0 auto` so it stays at top; emphasise on mobile. */
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 }
 
@@ -1699,4 +1711,29 @@ body:has(.about-doc) {
   color: var(--text-muted);
   font-size: 0.88rem;
   line-height: 1.6;
+}
+
+/* ── Footer rows + GitHub icon ─────────────────────────────────────────── */
+.rd-footer__line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+}
+
+.rd-footer__privacy {
+  color: var(--text-dim);
+}
+
+.rd-footer__link--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.rd-footer__icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  flex-shrink: 0;
 }

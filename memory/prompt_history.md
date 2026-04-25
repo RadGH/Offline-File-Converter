@@ -272,3 +272,9 @@ On mobile fix the footer it should not use multi column layout
 
 On mobile header remove “files stay on your device” and “100% local” to clean up. too cramped header
 
+## 2026-04-25 13:59
+
+Fix modal on mobile too far down screen. If the model doesn’t fit on screen it should be a full screen popup with close button with scrollable contents - title and close button always at top of the page.
+
+Footer mobile let’s change About Privacy and Cookie links to be row and By Radley Sustaire and Github links to be on one line. Add github icon to that link, see ../assets for font awesome and just use the svg from there.
+
