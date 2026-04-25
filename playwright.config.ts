@@ -10,6 +10,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5280',
     trace: 'on-first-retry',
+    // Pre-seed sessionStorage with coi-reloaded=1 so the COI service worker
+    // skips its one-time page reload during tests (the reload would interrupt
+    // page.evaluate() calls and DOM assertions mid-test).
+    storageState: './tests/e2e/storage-state.json',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

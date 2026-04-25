@@ -193,3 +193,7 @@ So I didn't try the new version but I looked back at my old tab that was process
 
 failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE: /mnt/vss/_work/1/s/onnxruntime/core/providers/cpu/tensor/reshape_helper.h:47 onnxruntime::ReshapeHelper::ReshapeHelper(const TensorShape &, TensorShapeVector &, bool) input_shape_size == size was false. The input tensor cannot be reshaped to the requested shape. Input shape:{1,180,65536}, requested shape:{1,180,256,253}
 
+## 2026-04-24 21:24
+
+Can we implement #1 AND #2?
+

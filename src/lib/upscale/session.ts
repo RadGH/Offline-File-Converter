@@ -5,6 +5,24 @@
  * - Reads model bytes from IndexedDB via getCachedModelBytes().
  * - Chooses executionProviders based on detectCapability().
  * - Caches the InferenceSession in-module.
+ *
+ * WebGPU notes:
+ *   The previous Swin2SR-Classical INT8 model contained DepthToSpace ops that
+ *   have incomplete WebGPU kernel coverage in ORT, causing a null-deref
+ *   ("Cannot read properties of null (reading 'Nd')"). The replacement
+ *   Swin2SR-Realworld uint8 model does not use DepthToSpace and runs cleanly
+ *   on the WebGPU execution provider.
+ *
+ * WASM multi-threading:
+ *   When crossOriginIsolated === true (provided by the COI service worker
+ *   registered in main.ts), ORT picks up SharedArrayBuffer and uses real
+ *   threads. numThreads is capped at 4 to avoid excessive memory on mobile.
+ *   When crossOriginIsolated === false ORT automatically falls back to 1
+ *   thread; no warning is emitted.
+ *
+ * Force-WASM override (dev/testing):
+ *   Set localStorage.setItem('upscale.forceWasm', '1') before page load.
+ *   Clear with localStorage.removeItem('upscale.forceWasm').
  */
 
 import type * as OrtType from 'onnxruntime-web';
@@ -38,8 +56,6 @@ async function _createSession(): Promise<OrtType.InferenceSession> {
   // In production (after `npm run build`), the files are copied to /ort/ by
   // the prebuild script. In development, Vite serves the raw node_modules
   // files; we detect dev mode by checking if import.meta.env.DEV is set.
-  // When the bundle's import.meta.url contains "node_modules", we know we're
-  // in dev mode and let ORT resolve paths relative to its own bundle.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metaEnv = (import.meta as unknown as Record<string, any>).env as Record<string, unknown> | undefined;
   const isDev = metaEnv?.['DEV'] === true;
@@ -60,16 +76,23 @@ async function _createSession(): Promise<OrtType.InferenceSession> {
     );
   }
 
-  // NOTE: The current Swin2SR INT8 model triggers a null-deref ("Cannot read
-  // properties of null (reading 'Nd')") inside ORT's WebGPU backend during
-  // session.run — WebGPU kernel coverage for INT8 ops is incomplete. Until
-  // we swap to an fp16/fp32 model variant, stick with WASM which has full
-  // coverage and works reliably across browsers.
-  await detectCapability(); // still probe so other code paths can show the UI
-  const executionProviders: string[] = ['wasm'];
+  // Dev/testing escape hatch: set localStorage item to force WASM even when
+  // WebGPU is available.  Allows comparing execution providers side-by-side.
+  const forceWasm =
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem('upscale.forceWasm') === '1';
+
+  const capability = await detectCapability();
+
+  // WebGPU primary, WASM fallback.
+  // The Swin2SR-Realworld model does not use DepthToSpace so the ORT WebGPU
+  // backend runs without the null-deref that affected the classical INT8 model.
+  const executionProviders: string[] =
+    !forceWasm && capability === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
 
   // Enable multi-threading when available (requires cross-origin isolation
-  // headers — if absent, numThreads falls back to 1 automatically).
+  // headers — provided by the COI service worker in public/coi-serviceworker.js).
+  // If crossOriginIsolated is false, ORT silently falls back to 1 thread.
   if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
     ort.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency, 4);
   }

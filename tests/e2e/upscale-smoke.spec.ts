@@ -11,7 +11,7 @@
  *        c. Stores the result on window for retrieval.
  *   4. Assert output dimensions = 64 × scale.
  *
- * Skipped when /tmp/upscale-models/model_uint8.onnx is absent.
+ * Skipped when /tmp/upscale-models/swin2sr_realworld_uint8.onnx is absent.
  *
  * Privacy: privacy.spec.ts never interacts with the upscale feature, so the
  * model route never fires in those tests — zero external requests guaranteed.
@@ -20,15 +20,23 @@
 import { test, expect } from '@playwright/test';
 import { existsSync } from 'fs';
 
-const MODEL_LOCAL_PATH = '/tmp/upscale-models/model_uint8.onnx';
+const MODEL_LOCAL_PATH = '/tmp/upscale-models/swin2sr_realworld_uint8.onnx';
 const MODEL_HF_URL =
-  'https://huggingface.co/Xenova/swin2SR-classical-sr-x4-64/resolve/main/onnx/model_uint8.onnx';
+  'https://huggingface.co/Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr/resolve/main/onnx/model_uint8.onnx';
 
 const modelExists = existsSync(MODEL_LOCAL_PATH);
 
 test.describe('Upscale smoke test — runUpscale Blob→Blob headless', () => {
   test.beforeEach(async ({ page }) => {
     if (!modelExists) return;
+
+    // Suppress the COI service worker's one-time reload so it doesn't interrupt
+    // page.evaluate() calls. The COI module checks this sessionStorage key and
+    // skips reload when it's already set.
+    await page.addInitScript(() => {
+      sessionStorage.setItem('coi-reloaded', '1');
+    });
+
     await page.route(MODEL_HF_URL, async (route) => {
       await route.fulfill({
         status: 200,

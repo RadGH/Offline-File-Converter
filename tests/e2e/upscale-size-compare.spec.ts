@@ -13,13 +13,19 @@ import { existsSync } from 'fs';
 
 const MODEL_LOCAL_PATH = '/tmp/upscale-models/model_uint8.onnx';
 const MODEL_HF_URL =
-  'https://huggingface.co/Xenova/swin2SR-classical-sr-x4-64/resolve/main/onnx/model_uint8.onnx';
+  'https://huggingface.co/Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr/resolve/main/onnx/model_uint8.onnx';
 
 const modelExists = existsSync(MODEL_LOCAL_PATH);
 
 test.describe('Upscale output differs from canvas bilinear', () => {
   test.beforeEach(async ({ page }) => {
     if (!modelExists) return;
+
+    // Suppress the COI service worker's one-time reload.
+    await page.addInitScript(() => {
+      sessionStorage.setItem('coi-reloaded', '1');
+    });
+
     await page.route(MODEL_HF_URL, async (route) => {
       await route.fulfill({
         status: 200,

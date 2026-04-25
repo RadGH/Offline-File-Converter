@@ -1,3 +1,9 @@
+// Register COI service worker first — before any heavy module loads.
+// This enables SharedArrayBuffer (required for ORT multi-threaded WASM) on
+// GitHub Pages where custom response headers cannot be set at the server layer.
+import { registerCoiServiceWorker } from '@/lib/coi';
+registerCoiServiceWorker().catch(() => { /* non-fatal — WASM still works single-threaded */ });
+
 import './styles/main.css';
 import { createDropZone } from '@/components/DropZone';
 import { createFileQueue } from '@/components/FileQueue';

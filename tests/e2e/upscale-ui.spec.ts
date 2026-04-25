@@ -27,7 +27,7 @@ const FIXTURE_PNG = path.resolve(
 );
 
 const MODEL_HF_URL =
-  'https://huggingface.co/Xenova/swin2SR-classical-sr-x4-64/resolve/main/onnx/model_uint8.onnx';
+  'https://huggingface.co/Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr/resolve/main/onnx/model_uint8.onnx';
 
 test.describe('Upscale Model Panel UI', () => {
   test('panel renders with Download model button on fresh page', async ({ page }) => {

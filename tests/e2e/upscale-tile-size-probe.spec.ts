@@ -1,21 +1,30 @@
 /**
- * Probe which square tile sizes the Swin2SR-x4-64 ONNX export actually accepts.
- * The user reported a reshape crash at 256x256 tiles — this narrows down which
- * sizes are safe to use as the default tile size.
+ * Probe which square tile sizes the Swin2SR-realworld-x4-64 ONNX export
+ * actually accepts.  Updated to use the v2 model (realworld uint8 variant).
+ *
+ * This also verifies the new model has no tile-size restrictions — the
+ * previous classical INT8 model had reshape crashes at some sizes; the
+ * realworld variant should accept any square input from 64→256.
  */
 
 import { test } from '@playwright/test';
 import { existsSync } from 'fs';
 
-const MODEL_LOCAL_PATH = '/tmp/upscale-models/model_uint8.onnx';
+const MODEL_LOCAL_PATH = '/tmp/upscale-models/swin2sr_realworld_uint8.onnx';
 const MODEL_HF_URL =
-  'https://huggingface.co/Xenova/swin2SR-classical-sr-x4-64/resolve/main/onnx/model_uint8.onnx';
+  'https://huggingface.co/Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr/resolve/main/onnx/model_uint8.onnx';
 
 const modelExists = existsSync(MODEL_LOCAL_PATH);
 
-test.describe('Upscale ONNX tile-size probe', () => {
+test.describe('Upscale ONNX tile-size probe (v2 realworld model)', () => {
   test.beforeEach(async ({ page }) => {
     if (!modelExists) return;
+
+    // Suppress the COI service worker's one-time reload.
+    await page.addInitScript(() => {
+      sessionStorage.setItem('coi-reloaded', '1');
+    });
+
     await page.route(MODEL_HF_URL, async (route) => {
       await route.fulfill({
         status: 200,
@@ -79,7 +88,7 @@ test.describe('Upscale ONNX tile-size probe', () => {
     );
 
     // eslint-disable-next-line no-console
-    console.log('\n=== Tile-size probe results ===');
+    console.log('\n=== Tile-size probe results (v2 realworld model) ===');
     for (const r of results) {
       // eslint-disable-next-line no-console
       console.log(

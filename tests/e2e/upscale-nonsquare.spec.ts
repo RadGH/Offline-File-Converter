@@ -4,20 +4,29 @@
  * tiler now pads edge tiles to full square size via clamp-to-edge. This test
  * feeds a non-square input that would have produced edge tiles and asserts
  * the upscale completes successfully.
+ *
+ * Updated to use swin2SR-realworld-sr-x4-64 uint8 (v2 model).
  */
 
 import { test, expect } from '@playwright/test';
 import { existsSync } from 'fs';
 
-const MODEL_LOCAL_PATH = '/tmp/upscale-models/model_uint8.onnx';
+const MODEL_LOCAL_PATH = '/tmp/upscale-models/swin2sr_realworld_uint8.onnx';
 const MODEL_HF_URL =
-  'https://huggingface.co/Xenova/swin2SR-classical-sr-x4-64/resolve/main/onnx/model_uint8.onnx';
+  'https://huggingface.co/Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr/resolve/main/onnx/model_uint8.onnx';
 
 const modelExists = existsSync(MODEL_LOCAL_PATH);
 
 test.describe('Upscale handles non-square images (edge-tile padding)', () => {
   test.beforeEach(async ({ page }) => {
     if (!modelExists) return;
+
+    // Suppress the COI service worker's one-time reload so it doesn't interrupt
+    // page.evaluate() calls in these inference tests.
+    await page.addInitScript(() => {
+      sessionStorage.setItem('coi-reloaded', '1');
+    });
+
     await page.route(MODEL_HF_URL, async (route) => {
       await route.fulfill({
         status: 200,

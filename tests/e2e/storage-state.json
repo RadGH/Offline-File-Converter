@@ -1,0 +1,15 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5280",
+      "localStorage": [],
+      "sessionStorage": [
+        {
+          "name": "coi-reloaded",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}
