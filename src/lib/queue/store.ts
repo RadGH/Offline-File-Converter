@@ -28,8 +28,6 @@ export interface PerFileSettings {
   height: number | null;
   maintainAspect: boolean;
   stripMetadata: boolean;
-  /** Only applies when format === 'png'. Runs UPNG optimizer after canvas encode. */
-  pngOptimize: boolean;
   /** When true and model is ready, upscale via AI before resize when enlarging. */
   upscale: boolean;
   /**
@@ -131,7 +129,6 @@ const DEFAULT_SETTINGS: PerFileSettings = {
   height: null,
   maintainAspect: true,
   stripMetadata: true,
-  pngOptimize: false,
   upscale: false,
   preserveOrientation: false,
   resample: 'high',

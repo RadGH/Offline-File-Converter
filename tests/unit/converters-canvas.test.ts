@@ -70,7 +70,6 @@ function makeInput(
       height: null,
       maintainAspect: true,
       stripMetadata: true,
-      pngOptimize: false,
       upscale: false,
       preserveOrientation: false,
       resample: 'high' as const,

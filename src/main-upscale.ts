@@ -121,8 +121,8 @@ footer.innerHTML = `
     <nav class="site-footer__links">
       <a href="/privacy.html" class="site-footer__link">Privacy</a>
       <a href="#" class="site-footer__link" data-action="manage-cookies">Manage cookies</a>
-      <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
-      <a href="https://github.com/RadGH/Offline-File-Converter" class="site-footer__link" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener noreferrer">By Radley Sustaire</a>
+      <a href="https://github.com/RadGH/Offline-File-Converter" class="site-footer__link" target="_blank" rel="noopener noreferrer">GitHub</a>
     </nav>
   </div>
 `;

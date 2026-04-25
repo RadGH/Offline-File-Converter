@@ -145,21 +145,7 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.appendChild(stripLabel);
 
-  // PNG Optimize
-  const pngOptimizeRow = document.createElement('div');
-  pngOptimizeRow.className = 'settings-panel__row';
-  const pngOptimizeLabel = document.createElement('label');
-  pngOptimizeLabel.className = 'settings-panel__field settings-panel__field--checkbox';
-  const pngOptimizeCheckbox = document.createElement('input');
-  pngOptimizeCheckbox.type = 'checkbox';
-  pngOptimizeCheckbox.className = 'settings-panel__checkbox';
-  pngOptimizeLabel.appendChild(pngOptimizeCheckbox);
-  pngOptimizeLabel.append(' Optimize PNG (slower, smaller)');
-  pngOptimizeRow.appendChild(pngOptimizeLabel);
-  const pngOptimizeHelp = document.createElement('p');
-  pngOptimizeHelp.className = 'settings-panel__help';
-  pngOptimizeHelp.textContent = 'Uses UPNG for extra compression. Adds 1–3s per file.';
-  pngOptimizeRow.appendChild(pngOptimizeHelp);
+  // PNG optimization is now always-on — no toggle needed.
 
   // Upscale with AI checkbox row
   const upscaleRow = document.createElement('div');
@@ -191,7 +177,6 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
   body.appendChild(dimsRow);
   body.appendChild(aspectRow);
   body.appendChild(stripRow);
-  body.appendChild(pngOptimizeRow);
   body.appendChild(upscaleRow);
 
   // Mount the upscale model panel at the bottom of the body
@@ -229,11 +214,6 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
     heightInput.value = defaults.height !== null ? String(defaults.height) : '';
     aspectCheckbox.checked = defaults.maintainAspect;
     stripCheckbox.checked = defaults.stripMetadata;
-
-    const isPng = defaults.format === 'png';
-    pngOptimizeRow.style.display = isPng ? '' : 'none';
-    pngOptimizeCheckbox.checked = defaults.pngOptimize;
-
     upscaleCheckbox.checked = defaults.upscale;
   }
 
@@ -329,10 +309,6 @@ export function createGlobalDefaults(store: QueueStore): HTMLElement {
 
   stripCheckbox.addEventListener('change', () => {
     store.setGlobalDefaults({ stripMetadata: stripCheckbox.checked });
-  });
-
-  pngOptimizeCheckbox.addEventListener('change', () => {
-    store.setGlobalDefaults({ pngOptimize: pngOptimizeCheckbox.checked });
   });
 
   upscaleCheckbox.addEventListener('change', () => {

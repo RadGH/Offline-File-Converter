@@ -249,7 +249,6 @@ const baseSettings: PerFileSettings = {
   height: null,
   maintainAspect: true,
   stripMetadata: true,
-  pngOptimize: false,
   upscale: false,
   preserveOrientation: false,
   resample: 'high',

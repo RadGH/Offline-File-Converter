@@ -93,24 +93,12 @@ test.describe('GlobalDefaults panel', () => {
     await expect(slider).toBeDisabled();
   });
 
-  // ── PNG optimize checkbox ───────────────────────────────────────────────────
+  // ── PNG optimization is always-on — no toggle row exists ──────────────────
 
-  test('PNG-optimize checkbox visible when PNG selected in GlobalDefaults, hidden for WebP', async ({ page }) => {
-    const formatSelect = page.locator('.global-defaults .settings-panel__select').first();
-
-    // Default (jpeg) — optimize row should be hidden
-    await expect(
-      page.locator('.global-defaults .settings-panel__row').filter({ hasText: 'Optimize PNG' })
-    ).toBeHidden();
-
-    // Switch to PNG — row should appear
-    await formatSelect.selectOption('png');
+  test('PNG-optimize row is absent (optimization is always-on for PNG, no user toggle)', async ({ page }) => {
+    // The pngOptimize checkbox/row has been removed — optimization is always-on.
     const pngOptimizeRow = page.locator('.global-defaults .settings-panel__row').filter({ hasText: 'Optimize PNG' });
-    await expect(pngOptimizeRow).toBeVisible();
-
-    // Switch to WebP — row should hide again
-    await formatSelect.selectOption('webp');
-    await expect(pngOptimizeRow).toBeHidden();
+    await expect(pngOptimizeRow).toHaveCount(0);
   });
 
   // ── Aspect-lock toggle ──────────────────────────────────────────────────────

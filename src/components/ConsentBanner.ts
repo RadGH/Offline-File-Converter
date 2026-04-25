@@ -26,7 +26,7 @@ function buildBanner(onDecide: (c: Consent) => void): HTMLElement {
           Your files are processed entirely in your browser and never uploaded.
           We'd like to use Google Analytics cookies to understand which features
           people use. You can reject without affecting the converter.
-          See our <a href="/privacy.html" class="consent-banner__link">privacy notice</a>.
+          See our <a href="#privacy" class="consent-banner__link">privacy notice</a>.
         </p>
       </div>
       <div class="consent-banner__actions">

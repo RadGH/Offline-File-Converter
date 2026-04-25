@@ -1249,6 +1249,11 @@ body {
     grid-template-columns: 1fr;
     overflow: visible;
     height: auto;
+    /* Desktop has flex:1 1 0 with flex-basis:0 to fill the viewport.
+       On mobile body uses normal block flow, so reset flex-basis to auto
+       otherwise main collapses to 0 height and drop/queue render outside
+       its box, pushing the footer up above them visually. */
+    flex: 0 0 auto;
   }
 
   .rd-left {
@@ -1391,4 +1396,288 @@ body {
 :root[data-theme="dark"] ::selection {
   background: rgba(236, 139, 106, 0.4);
   color: var(--text);
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+.rd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(30, 24, 18, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rd-modal {
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-drop);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rd-modal__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream-2);
+}
+
+.rd-modal__title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.rd-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-med);
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.rd-modal__close:hover {
+  background: var(--cream-3);
+  color: var(--text);
+}
+
+.rd-modal__close:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(224, 120, 86, 0.25);
+}
+
+.rd-modal__content {
+  flex: 1 1 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+/* Content styles inside modal (inherit privacy-doc-like styling) */
+.rd-modal__content h1 {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.4rem;
+  color: var(--accent);
+}
+
+.rd-modal__content h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid var(--cream-3);
+}
+
+.rd-modal__content p,
+.rd-modal__content li {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.rd-modal__content a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.rd-modal__content a:hover {
+  color: var(--accent-hover);
+}
+
+.rd-modal__content ul,
+.rd-modal__content dl {
+  padding-left: 1.4rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.rd-modal__content li + li {
+  margin-top: 0.35rem;
+}
+
+.rd-modal__content code {
+  font-size: 0.83em;
+  background: var(--cream-3);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.rd-modal__content .privacy-doc__updated {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin: 0 0 1.5rem;
+}
+
+/* Short-version sage callout in privacy modal */
+.rd-modal__content h2:first-of-type + p {
+  background: var(--sage-light);
+  color: var(--sage-text);
+  border-left: 3px solid var(--sage);
+  padding: 0.75rem 1rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* About format guide */
+.about-format-guide {
+  padding-left: 0;
+  list-style: none;
+}
+
+.about-format-guide dt {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.about-format-guide dd {
+  margin: 0.15rem 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.rd-modal__content .about-github {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+/* Mobile: fullscreen-ish modal */
+@media (max-width: 600px) {
+  .rd-modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .rd-modal {
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+/* ── Standalone doc pages (about.html, privacy.html) ──────────────────────── */
+
+/* Scrollable body for doc pages (unlike the main app which is overflow:hidden) */
+.privacy-doc,
+.about-doc {
+  overflow-y: auto;
+}
+
+body:has(.privacy-doc),
+body:has(.about-doc) {
+  height: auto;
+  overflow: auto;
+}
+
+/* rd-header logo as a link (doc pages) */
+.rd-header__logo--link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.rd-header__logo--link:hover {
+  color: var(--accent);
+}
+
+/* About-specific additions */
+.about-doc h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.4rem;
+  color: var(--accent);
+}
+
+.about-doc h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 2rem 0 0.4rem;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid var(--cream-3);
+}
+
+.about-doc p,
+.about-doc li {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.about-doc ul {
+  padding-left: 1.4rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.about-doc li + li {
+  margin-top: 0.35rem;
+}
+
+.about-doc a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.about-doc a:hover {
+  color: var(--accent-hover);
+}
+
+.about-doc .about-github {
+  margin-top: 2rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.about-format-guide {
+  padding-left: 0;
+  list-style: none;
+}
+
+.about-format-guide dt {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 0.92rem;
+  margin-top: 0.8rem;
+}
+
+.about-format-guide dd {
+  margin: 0.15rem 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
 }

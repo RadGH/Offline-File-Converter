@@ -113,11 +113,14 @@ export async function convert(
         onProgress,
       );
 
-      // Optional PNG optimisation pass
-      if (format === 'png' && settings.pngOptimize) {
+      // PNG is always run through UPNG optimizer — no toggle.
+      // UPNG picks the optimal color type (palette/truecolor/grayscale)
+      // and strips the alpha channel when all pixels are fully opaque.
+      // The smaller of the two results is always returned.
+      if (format === 'png') {
         const { optimizePng } = await import('./png-optimize');
         const optimizedBlob = await optimizePng(result.blob, (pct) => {
-          // Compress the progress range into 0–20 so it doesn't look like it
+          // Compress the progress range into 80–100 so it doesn't look like it
           // jumped backwards after the canvas encoder reported 100.
           onProgress?.(80 + Math.round(pct * 0.2));
         });

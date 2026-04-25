@@ -12,6 +12,9 @@ import { initConsent } from '@/lib/consent';
 import { maybeShowConsentBanner, openConsentBanner } from '@/components/ConsentBanner';
 import { initTheme } from '@/lib/theme';
 import { createThemeToggle } from '@/components/ThemeToggle';
+import { createModal } from '@/components/Modal';
+import { getAboutHTML } from '@/components/AboutContent';
+import { getPrivacyHTML } from '@/components/PrivacyContent';
 
 initTheme();
 initConsent();
@@ -141,18 +144,63 @@ right.appendChild(queueCard);
 main.appendChild(left);
 main.appendChild(right);
 
+// ── Modal setup ───────────────────────────────────────────────────────────────
+
+const aboutModal = createModal({ title: 'About', contentHtml: getAboutHTML() });
+const privacyModal = createModal({ title: 'Privacy Notice', contentHtml: getPrivacyHTML() });
+
+// When the about modal links to #privacy (privacy link inside about content)
+aboutModal.element.addEventListener('click', (e) => {
+  const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a.about-privacy-link');
+  if (a) {
+    e.preventDefault();
+    aboutModal.close();
+    history.replaceState({}, '', '#privacy');
+    privacyModal.open();
+  }
+});
+
+function openModalForHash(hash: string): void {
+  if (hash === '#about') {
+    aboutModal.open();
+  } else if (hash === '#privacy') {
+    privacyModal.open();
+  }
+}
+
+// Open modal on page load if hash present
+openModalForHash(location.hash);
+
+// Listen for future hash changes (back/forward or in-page link clicks)
+window.addEventListener('hashchange', () => {
+  openModalForHash(location.hash);
+});
+
 // Footer
 const footer = document.createElement('footer');
 footer.className = 'rd-footer';
 footer.innerHTML = `
   <div class="rd-footer__inner">
     <span>Files processed in your browser · No uploads · No accounts</span>
-    <a href="/privacy.html" class="rd-footer__link">Privacy</a>
+    <a href="#about" class="rd-footer__link" data-action="open-about">About</a>
+    <a href="#privacy" class="rd-footer__link" data-action="open-privacy">Privacy</a>
     <a href="#" class="rd-footer__link" data-action="manage-cookies">Manage cookies</a>
-    <a href="https://radleysustaire.com/" class="rd-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
-    <a href="https://github.com/RadGH/Offline-File-Converter" class="rd-footer__link" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://radleysustaire.com/" class="rd-footer__link" target="_blank" rel="noopener noreferrer">By Radley Sustaire</a>
+    <a href="https://github.com/RadGH/Offline-File-Converter" class="rd-footer__link" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 `;
+
+footer.querySelector<HTMLAnchorElement>('[data-action="open-about"]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  history.replaceState({}, '', '#about');
+  aboutModal.open();
+});
+
+footer.querySelector<HTMLAnchorElement>('[data-action="open-privacy"]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  history.replaceState({}, '', '#privacy');
+  privacyModal.open();
+});
 
 footer.querySelector<HTMLAnchorElement>('[data-action="manage-cookies"]')?.addEventListener('click', (e) => {
   e.preventDefault();

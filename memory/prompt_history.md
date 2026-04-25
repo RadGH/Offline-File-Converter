@@ -250,3 +250,17 @@ Resample should only show when applicable. It should not show for PNG for exampl
 
 Add a button to toggle dark/light mode and set to browser preference by default. Could be placed in the footer or near the 100% local badge in the corner, wherever makes the most sense
 
+## 2026-04-25 12:46
+
+Let's make the Privacy page pop up in a modal window. Let's also add an About page (left of Privacy link) that also popups up in a modal window and explains features and how they work. Both pages should also have a separate html page with a link back to the converter. The separate pages should ideally have the same color scheme and dark/light mode setting carried over, though less important with the new modal popups. If possible the modal popups should change the url and can be shared, those links auto-open the modal once visited but keep you on index.html so you can close the popup and use the converter. This might make the standalone pages obsolete but we can keep them for search engine results if needed. Add a favicon matching the color screen (painter's palette?) and add SEO, do a security audit and implement any non-desctructive security suggestions like CSP/CORS. Do a code review and ensure everything is solid. 
+
+I also have some files in /home/radgh/claude/assets/references/convert where frame-15-original.png is the original and frame-15-converted.png was converted. Why is the converted version so much larger? The image was created by ../game13/ using Playwright I think so it may have good compression by default. If possible to compress the PNG further, we should aim for that. Imagecompressor.com does a much better job see frame-15-imagecompressor.png. How can we achieve a similar effect for PNG images, and what about others? I'd like to offer the best compression feasible
+
+## 2026-04-25 12:53
+
+1. Yes confirm. File size is more important than compression time.
+2. Hash is fine
+3. Refactor
+4. Written .md report I can review on github
+5. Those features plus also a section about each file format supported and their key differences/benefits
+

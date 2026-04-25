@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         privacy: resolve(__dirname, 'privacy.html'),
+        about: resolve(__dirname, 'about.html'),
         upscale: resolve(__dirname, 'upscale.html'),
       },
     },

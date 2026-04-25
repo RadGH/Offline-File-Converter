@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://convert.radgh.com/sitemap.xml

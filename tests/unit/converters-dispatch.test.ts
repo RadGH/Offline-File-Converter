@@ -70,7 +70,6 @@ function makeInput(
       height: null,
       maintainAspect: true,
       stripMetadata: true,
-      pngOptimize: false,
       upscale: false,
       preserveOrientation: false,
       resample: 'high' as const,
@@ -222,9 +221,9 @@ describe('convert dispatcher — Phase 6', () => {
     expect(mockConvertToGif).toHaveBeenCalledOnce();
   });
 
-  // ── PNG optimize passthrough ────────────────────────────────────────────
+  // ── PNG optimize — always-on for PNG output ────────────────────────────
 
-  it('does NOT call optimizePng when pngOptimize is false', async () => {
+  it('always calls optimizePng when format=png (always-on)', async () => {
     mockConvertViaCanvas.mockResolvedValueOnce({
       blob: new Blob(['data'], { type: 'image/png' }),
       outName: 'photo.png',
@@ -233,25 +232,12 @@ describe('convert dispatcher — Phase 6', () => {
       outHeight: 80,
       outFormat: 'png',
     });
-    await convert(makeInput('photo.jpg', 'image/jpeg', 'png', { pngOptimize: false }));
-    expect(mockOptimizePng).not.toHaveBeenCalled();
-  });
-
-  it('calls optimizePng when format=png and pngOptimize=true', async () => {
-    mockConvertViaCanvas.mockResolvedValueOnce({
-      blob: new Blob(['data'], { type: 'image/png' }),
-      outName: 'photo.png',
-      outSize: 4,
-      outWidth: 100,
-      outHeight: 80,
-      outFormat: 'png',
-    });
-    await convert(makeInput('photo.jpg', 'image/jpeg', 'png', { pngOptimize: true }));
+    await convert(makeInput('photo.jpg', 'image/jpeg', 'png'));
     expect(mockOptimizePng).toHaveBeenCalledOnce();
   });
 
-  it('does NOT call optimizePng for non-png outputs even if pngOptimize=true', async () => {
-    await convert(makeInput('photo.jpg', 'image/jpeg', 'jpeg', { pngOptimize: true }));
+  it('does NOT call optimizePng for non-png outputs', async () => {
+    await convert(makeInput('photo.jpg', 'image/jpeg', 'jpeg'));
     expect(mockOptimizePng).not.toHaveBeenCalled();
   });
 });
