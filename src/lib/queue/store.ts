@@ -32,6 +32,15 @@ export interface PerFileSettings {
   pngOptimize: boolean;
   /** When true and model is ready, upscale via AI before resize when enlarging. */
   upscale: boolean;
+  /**
+   * When true and maintainAspect=true and dimensionUnit='px': the typed
+   * dimension applies to the LONGER side of the source image.
+   */
+  preserveOrientation: boolean;
+  /** Resampling filter used when drawing the bitmap to the output canvas. */
+  resample: 'nearest' | 'bilinear' | 'high';
+  /** Whether W/H inputs are pixel values ('px') or percent of source ('percent'). */
+  dimensionUnit: 'px' | 'percent';
 }
 
 export interface QueueItemResult {
@@ -76,6 +85,8 @@ export type UpscaleCapabilityValue = 'unknown' | 'webgpu' | 'wasm' | 'none';
 export interface QueueSettings {
   concurrency: number;
   autoStart: boolean;
+  /** 'auto' = processor starts automatically on file add. 'manual' = user must trigger. */
+  mode: 'auto' | 'manual';
 }
 
 export interface QueueState {
@@ -122,14 +133,19 @@ const DEFAULT_SETTINGS: PerFileSettings = {
   stripMetadata: true,
   pngOptimize: false,
   upscale: false,
+  preserveOrientation: false,
+  resample: 'high',
+  dimensionUnit: 'px',
 };
 
 const DEFAULT_QUEUE_SETTINGS: QueueSettings = {
   concurrency: 2,
   autoStart: true,
+  mode: 'auto',
 };
 
 const LS_KEY_DEFAULTS = 'converter.globalDefaults.v1';
+const LS_KEY_QUEUE = 'converter.queueSettings.v1';
 
 function loadPersistedDefaults(): PerFileSettings {
   try {
@@ -151,11 +167,30 @@ function persistDefaults(defaults: PerFileSettings): void {
   }
 }
 
+function loadPersistedQueueSettings(): QueueSettings {
+  try {
+    const raw = localStorage.getItem(LS_KEY_QUEUE);
+    if (!raw) return { ...DEFAULT_QUEUE_SETTINGS };
+    const parsed = JSON.parse(raw) as Partial<QueueSettings>;
+    return { ...DEFAULT_QUEUE_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_QUEUE_SETTINGS };
+  }
+}
+
+function persistQueueSettings(settings: QueueSettings): void {
+  try {
+    localStorage.setItem(LS_KEY_QUEUE, JSON.stringify(settings));
+  } catch {
+    // Ignore quota / private-mode errors.
+  }
+}
+
 export function createQueueStore(): QueueStore {
   let state: QueueState = {
     items: [],
     globalDefaults: loadPersistedDefaults(),
-    queueSettings: { ...DEFAULT_QUEUE_SETTINGS },
+    queueSettings: loadPersistedQueueSettings(),
     modelStatus: { kind: 'unknown' },
     upscaleCapability: 'unknown',
   };
@@ -287,6 +322,7 @@ export function createQueueStore(): QueueStore {
       ...state,
       queueSettings: { ...state.queueSettings, ...patch },
     };
+    persistQueueSettings(state.queueSettings);
     notify();
   }
 

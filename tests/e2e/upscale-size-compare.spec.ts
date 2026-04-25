@@ -44,7 +44,7 @@ test.describe('Upscale output differs from canvas bilinear', () => {
       return;
     }
 
-    await page.goto('/');
+    await page.goto('/upscale.html');
     test.slow();
 
     const { aiSize, naiveSize, aiWidth, naiveWidth } = await page.evaluate(

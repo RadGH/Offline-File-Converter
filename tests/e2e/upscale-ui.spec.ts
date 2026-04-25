@@ -31,7 +31,7 @@ const MODEL_HF_URL =
 
 test.describe('Upscale Model Panel UI', () => {
   test('panel renders with Download model button on fresh page', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/upscale.html');
 
     // Open Global Defaults if collapsed
     const toggle = page.locator('.global-defaults__toggle');
@@ -61,7 +61,7 @@ test.describe('Upscale Model Panel UI', () => {
   });
 
   test('upscale checkbox is disabled when model is absent/unknown', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/upscale.html');
 
     const toggle = page.locator('.global-defaults__toggle');
     const isExpanded = await toggle.getAttribute('aria-expanded');
@@ -142,7 +142,7 @@ test.describe('Upscale Model Panel UI', () => {
         });
       });
 
-      await page.goto('/');
+      await page.goto('/upscale.html');
 
       // This test verifies the Download button click triggers a state transition.
       // Full ready-state test requires matching SHA-256 (separate test with model file).
@@ -192,7 +192,7 @@ test.describe('Upscale Model Panel UI', () => {
 
 test.describe('Upscale bubble on completed item', () => {
   test('no upscale bubble when upscale is not configured', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/upscale.html');
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(FIXTURE_PNG);
@@ -229,7 +229,7 @@ test.describe('Privacy — model panel does not auto-download', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('/upscale.html');
 
     // Wait for the panel to settle
     await page.waitForTimeout(1000);

@@ -49,6 +49,8 @@ export interface QueueProcessor {
   resume: () => void;
   cancelItem: (id: string) => void;
   retryItem: (id: string) => void;
+  /** Run a single item immediately, bypassing the normal queue start/mode. */
+  runItem: (id: string) => void;
   getState: () => ProcessorState;
   subscribe: (listener: ProcessorListener) => () => void;
 }
@@ -230,6 +232,20 @@ export function createQueueProcessor(opts: ProcessorOptions): QueueProcessor {
     }
   }
 
+  /**
+   * Run a single item immediately regardless of the processor running state or
+   * queue mode. Used for per-item "Convert" button in manual mode.
+   * If the item is not in 'waiting' status this is a no-op.
+   */
+  function runItem(id: string): void {
+    const { items } = store.getState();
+    const item = items.find(i => i.id === id);
+    if (!item || item.status !== 'waiting') return;
+    if (active.has(id)) return;
+    processItem(id);
+    notifyListeners();
+  }
+
   function getState(): ProcessorState {
     return buildState();
   }
@@ -252,5 +268,5 @@ export function createQueueProcessor(opts: ProcessorOptions): QueueProcessor {
     if (running) tick();
   });
 
-  return { start, pause, resume, cancelItem, retryItem, getState, subscribe };
+  return { start, pause, resume, cancelItem, retryItem, runItem, getState, subscribe };
 }

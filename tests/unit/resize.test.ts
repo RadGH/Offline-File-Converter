@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computePairedDimension, applyResize } from '@/lib/utils/resize';
+import type { PerFileSettings } from '@/lib/queue/store';
+import { settingsDiffer } from '@/lib/utils/settings-differ';
 
 // ─── computePairedDimension ──────────────────────────────────────────────────
 
@@ -154,5 +156,132 @@ describe('applyResize', () => {
   it('2:1 image — width 200 → height 100', () => {
     const result = applyResize({ width: 400, height: 200 }, { width: 200, height: null, maintainAspect: true });
     expect(result).toEqual({ width: 200, height: 100 });
+  });
+});
+
+// ─── preserveOrientation ─────────────────────────────────────────────────────
+
+describe('applyResize — preserveOrientation', () => {
+  // Portrait source: 800×1200 (h > w)
+  const portrait = { width: 800, height: 1200 };
+  // Landscape source: 1920×1080 (w > h)
+  const landscape = { width: 1920, height: 1080 };
+
+  it('portrait + width-only typed → treats typed value as height (longer side)', () => {
+    // User typed W=500, source is portrait → apply 500 to height
+    const result = applyResize(portrait, { width: 500, height: null, maintainAspect: true, preserveOrientation: true });
+    // 500 is applied to height (longer side), width = 500 * 800/1200 = 333
+    expect(result.height).toBe(500);
+    expect(result.width).toBe(Math.round(500 * 800 / 1200)); // 333
+  });
+
+  it('landscape + height-only typed → treats typed value as width (longer side)', () => {
+    // User typed H=500, source is landscape → apply 500 to width
+    const result = applyResize(landscape, { width: null, height: 500, maintainAspect: true, preserveOrientation: true });
+    // 500 applied to width (longer side), height = 500 * 1080/1920 = 281
+    expect(result.width).toBe(500);
+    expect(result.height).toBe(Math.round(500 * 1080 / 1920));
+  });
+
+  it('landscape + width-only typed → no swap (typed W goes to width already longer)', () => {
+    const result = applyResize(landscape, { width: 960, height: null, maintainAspect: true, preserveOrientation: true });
+    expect(result.width).toBe(960);
+    expect(result.height).toBe(540);
+  });
+
+  it('portrait + portrait-typed both → no swap needed', () => {
+    // Typed W=400, H=600 which is portrait matching source portrait
+    const result = applyResize(portrait, { width: 400, height: 600, maintainAspect: true, preserveOrientation: true });
+    // Fit inside 400×600 with aspect 800:1200 = 2:3, scale = min(400/800, 600/1200) = 0.5
+    expect(result.width).toBe(400);
+    expect(result.height).toBe(600);
+  });
+
+  it('portrait + landscape-typed both → swaps to portrait', () => {
+    // Typed W=2000, H=1000 (landscape) but source is portrait → swap to W=1000 H=2000
+    const result = applyResize(portrait, { width: 2000, height: 1000, maintainAspect: true, preserveOrientation: true });
+    // After swap: target is 1000×2000, fit inside: scale = min(1000/800, 2000/1200) = min(1.25, 1.667) = 1.25
+    expect(result.width).toBe(Math.round(800 * 1.25)); // 1000
+    expect(result.height).toBe(Math.round(1200 * 1.25)); // 1500
+  });
+
+  it('disabled when dimensionUnit=percent (no swap)', () => {
+    // percent mode should ignore preserveOrientation
+    const result = applyResize(portrait, { width: 50, height: null, maintainAspect: true, preserveOrientation: true, dimensionUnit: 'percent' });
+    // 50% of both sides
+    expect(result.width).toBe(400);
+    expect(result.height).toBe(600);
+  });
+});
+
+// ─── percent mode ─────────────────────────────────────────────────────────────
+
+describe('applyResize — percent mode', () => {
+  const orig = { width: 1000, height: 500 };
+
+  it('50% with maintainAspect scales both axes', () => {
+    const result = applyResize(orig, { width: 50, height: null, maintainAspect: true, dimensionUnit: 'percent' });
+    expect(result).toEqual({ width: 500, height: 250 });
+  });
+
+  it('null width treated as 100% in percent mode', () => {
+    const result = applyResize(orig, { width: null, height: null, maintainAspect: false, dimensionUnit: 'percent' });
+    expect(result).toEqual({ width: 1000, height: 500 });
+  });
+
+  it('200% doubles both axes independently when maintainAspect=false', () => {
+    const result = applyResize(orig, { width: 200, height: 50, maintainAspect: false, dimensionUnit: 'percent' });
+    expect(result).toEqual({ width: 2000, height: 250 });
+  });
+
+  it('100% returns original size', () => {
+    const result = applyResize(orig, { width: 100, height: 100, maintainAspect: true, dimensionUnit: 'percent' });
+    expect(result).toEqual({ width: 1000, height: 500 });
+  });
+});
+
+// ─── settingsDiffer ───────────────────────────────────────────────────────────
+
+const baseSettings: PerFileSettings = {
+  format: 'jpeg',
+  quality: 85,
+  width: null,
+  height: null,
+  maintainAspect: true,
+  stripMetadata: true,
+  pngOptimize: false,
+  upscale: false,
+  preserveOrientation: false,
+  resample: 'high',
+  dimensionUnit: 'px',
+};
+
+describe('settingsDiffer', () => {
+  it('returns false for identical settings', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings })).toBe(false);
+  });
+
+  it('returns true when format differs', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, format: 'webp' })).toBe(true);
+  });
+
+  it('returns true when quality differs', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, quality: 70 })).toBe(true);
+  });
+
+  it('returns true when dimensionUnit differs', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, dimensionUnit: 'percent' })).toBe(true);
+  });
+
+  it('returns true when resample differs', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, resample: 'nearest' })).toBe(true);
+  });
+
+  it('returns true when preserveOrientation differs', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, preserveOrientation: true })).toBe(true);
+  });
+
+  it('returns true when width differs (null vs number)', () => {
+    expect(settingsDiffer(baseSettings, { ...baseSettings, width: 800 })).toBe(true);
   });
 });

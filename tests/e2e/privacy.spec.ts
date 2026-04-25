@@ -62,7 +62,7 @@ test.describe('Privacy — no external network requests during conversion', () =
     await page.goto('/');
 
     // ── Set global default to WebP BEFORE upload ──
-    await page.locator('.global-defaults .settings-panel__select').first().selectOption('webp');
+    await page.locator('.simple-settings .rd-select').first().selectOption('webp');
 
     // ── Upload the PNG fixture ──
     const fileInput = page.locator('input[type="file"]');
@@ -101,7 +101,7 @@ test.describe('Privacy — no external network requests during conversion', () =
     await page.goto('/');
 
     // ── Set global default to AVIF BEFORE upload ──
-    await page.locator('.global-defaults .settings-panel__select').first().selectOption('avif');
+    await page.locator('.simple-settings .rd-select').first().selectOption('avif');
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(FIXTURE_PNG);

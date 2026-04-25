@@ -2,6 +2,9 @@ import type { QueueItem as QueueItemData, OutputFormat } from '@/lib/queue/store
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { formatBytes } from '@/lib/utils/format-bytes';
+import { settingsDiffer } from '@/lib/utils/settings-differ';
+
+export { settingsDiffer };
 
 const FORMAT_FACTOR: Record<OutputFormat, number> = {
   jpeg: 0.55,
@@ -223,6 +226,20 @@ export function createQueueItemEl(
   const actions = document.createElement('div');
   actions.className = 'queue-item__actions';
 
+  // Per-item "Convert" button: shown when waiting AND queue mode is manual
+  if (item.status === 'waiting') {
+    const queueMode = store.getQueueSettings().mode;
+    if (queueMode === 'manual') {
+      const convertBtn = document.createElement('button');
+      convertBtn.type = 'button';
+      convertBtn.className = 'queue-item__convert-btn';
+      convertBtn.setAttribute('aria-label', `Convert ${item.file.name}`);
+      convertBtn.textContent = 'Convert';
+      convertBtn.addEventListener('click', () => processor.runItem(item.id));
+      actions.appendChild(convertBtn);
+    }
+  }
+
   if (item.status === 'waiting' || item.status === 'processing') {
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
@@ -296,6 +313,20 @@ export function createQueueItemEl(
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
     actions.appendChild(dlBtn);
+
+    // Re-convert button: only shown when item settings differ from globalDefaults
+    if (settingsDiffer(item.settings, store.getGlobalDefaults())) {
+      const reconvertBtn = document.createElement('button');
+      reconvertBtn.type = 'button';
+      reconvertBtn.className = 'queue-item__reconvert-btn';
+      reconvertBtn.setAttribute('aria-label', `Re-convert ${item.file.name} with current settings`);
+      reconvertBtn.textContent = 'Re-convert';
+      reconvertBtn.title = 'Add a new queue entry with current default settings applied.';
+      reconvertBtn.addEventListener('click', () => {
+        store.addFiles([item.file]);
+      });
+      actions.appendChild(reconvertBtn);
+    }
   }
 
   const removeBtn = document.createElement('button');
@@ -331,6 +362,16 @@ function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob):
   panel.className = 'compare-panel';
   panel.id = panelId;
 
+  // Prevent drag gestures inside the compare panel from bubbling up to the
+  // document-level drop handler (which would try to add files).
+  panel.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  panel.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+  });
+
   const viewport = document.createElement('div');
   viewport.className = 'compare-panel__viewport';
 
@@ -340,6 +381,7 @@ function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob):
   afterImg.className = 'compare-panel__after';
   afterImg.alt = 'Converted result';
   afterImg.src = afterUrl;
+  afterImg.draggable = false;
 
   const beforeClip = document.createElement('div');
   beforeClip.className = 'compare-panel__before-clip';
@@ -348,6 +390,7 @@ function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob):
   beforeImg.className = 'compare-panel__before';
   beforeImg.alt = 'Original';
   beforeImg.src = beforeUrl;
+  beforeImg.draggable = false;
   beforeClip.appendChild(beforeImg);
 
   const handle = document.createElement('div');

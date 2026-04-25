@@ -34,7 +34,7 @@ async function convertFile(
   await page.goto('/');
 
   // Set global default format before upload — new files inherit it
-  await page.locator('.global-defaults .settings-panel__select').first().selectOption(outputFormat);
+  await page.locator('.simple-settings .rd-select').first().selectOption(outputFormat);
 
   const fileInput = page.locator('input[type="file"]');
   await fileInput.setInputFiles(filePath);

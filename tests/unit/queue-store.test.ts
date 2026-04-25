@@ -219,9 +219,11 @@ describe('queueSettings', () => {
     expect(settings.autoStart).toBe(true);
   });
 
-  it('getQueueSettings returns current settings', () => {
+  it('getQueueSettings returns current settings with defaults', () => {
+    // Clear localStorage to avoid cross-test contamination
+    localStorage.removeItem('converter.queueSettings.v1');
     const store = createQueueStore();
-    expect(store.getQueueSettings()).toEqual({ concurrency: 2, autoStart: true });
+    expect(store.getQueueSettings()).toEqual({ concurrency: 2, autoStart: true, mode: 'auto' });
   });
 
   it('setQueueSettings updates concurrency', () => {
@@ -237,6 +239,8 @@ describe('queueSettings', () => {
   });
 
   it('setQueueSettings merges partial patch (does not wipe other fields)', () => {
+    // Clear localStorage to avoid cross-test contamination
+    localStorage.removeItem('converter.queueSettings.v1');
     const store = createQueueStore();
     store.setQueueSettings({ concurrency: 5 });
     expect(store.getQueueSettings().autoStart).toBe(true); // unchanged

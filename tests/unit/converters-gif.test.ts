@@ -108,6 +108,9 @@ function makeInput(overrides: Partial<ConversionInput['settings']> = {}): Conver
       stripMetadata: true,
       pngOptimize: false,
       upscale: false,
+      preserveOrientation: false,
+      resample: 'high' as const,
+      dimensionUnit: 'px' as const,
       ...overrides,
     },
   };

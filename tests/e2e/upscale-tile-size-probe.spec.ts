@@ -42,7 +42,7 @@ test.describe('Upscale ONNX tile-size probe (v2 realworld model)', () => {
       test.skip();
       return;
     }
-    await page.goto('/');
+    await page.goto('/upscale.html');
     test.setTimeout(600_000); // up to 10min for the full probe
 
     const results = await page.evaluate(

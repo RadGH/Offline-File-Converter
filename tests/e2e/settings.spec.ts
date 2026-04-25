@@ -20,9 +20,11 @@ const __dirname = path.dirname(__filename);
 const FIXTURE_PNG = path.resolve(__dirname, '../../public/test-fixtures/sample.png');
 
 
+// These tests target the GlobalDefaults panel which lives in the upscale variant (/upscale.html).
+// The new main page (/) uses SimpleSettings — covered by redesign.spec.ts.
 test.describe('GlobalDefaults panel', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/upscale.html');
   });
 
   // ── Panel visibility ────────────────────────────────────────────────────────

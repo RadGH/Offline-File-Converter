@@ -39,15 +39,31 @@ function buildOutName(originalName: string, ext: string): string {
   return `${base}.${ext}`;
 }
 
+type ResampleMode = 'nearest' | 'bilinear' | 'high';
+
+function applyResampleToCtx(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, mode: ResampleMode): void {
+  if (mode === 'nearest') {
+    ctx.imageSmoothingEnabled = false;
+  } else if (mode === 'bilinear') {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low';
+  } else {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+}
+
 function blobToCanvas(
   bitmap: ImageBitmap,
   outWidth: number,
-  outHeight: number
+  outHeight: number,
+  resample: ResampleMode = 'high'
 ): HTMLCanvasElement | OffscreenCanvas {
   if (typeof OffscreenCanvas !== 'undefined') {
     const canvas = new OffscreenCanvas(outWidth, outHeight);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get 2d context from OffscreenCanvas');
+    applyResampleToCtx(ctx, resample);
     ctx.drawImage(bitmap, 0, 0, outWidth, outHeight);
     return canvas;
   }
@@ -57,6 +73,7 @@ function blobToCanvas(
   canvas.height = outHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2d context from canvas');
+  applyResampleToCtx(ctx, resample);
   ctx.drawImage(bitmap, 0, 0, outWidth, outHeight);
   return canvas;
 }
@@ -103,11 +120,14 @@ export const convertViaCanvas: ConverterFn = async (input, onProgress) => {
     width: settings.width,
     height: settings.height,
     maintainAspect: settings.maintainAspect,
+    preserveOrientation: settings.preserveOrientation,
+    dimensionUnit: settings.dimensionUnit,
   });
 
   onProgress?.(70); // resized (logically; actual draw happens next)
 
-  const canvas = blobToCanvas(bitmap, outWidth, outHeight);
+  const resample = settings.resample ?? 'high';
+  const canvas = blobToCanvas(bitmap, outWidth, outHeight, resample);
   bitmap.close();
 
   const blob = await canvasToBlob(canvas, mime, quality);

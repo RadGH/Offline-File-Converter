@@ -55,7 +55,7 @@ test.describe('Upscale smoke test — runUpscale Blob→Blob headless', () => {
       return;
     }
 
-    await page.goto('/');
+    await page.goto('/upscale.html');
     test.slow(); // 3× configured timeout for WASM inference
 
     // Inject and run the upscale pipeline inside the page context.
@@ -100,7 +100,7 @@ test.describe('Upscale smoke test — runUpscale Blob→Blob headless', () => {
       return;
     }
 
-    await page.goto('/');
+    await page.goto('/upscale.html');
     test.slow();
 
     const result = await page.evaluate(

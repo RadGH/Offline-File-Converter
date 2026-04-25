@@ -16,10 +16,11 @@ function isLossless(fmt: OutputFormat): boolean {
 }
 
 /**
- * Minimal settings panel for the redesign entry.
- * Always visible (not collapsible). No upscale controls.
+ * Minimal settings panel for the main entry.
+ * Always visible. No upscale controls.
  *
- * Exposes: format, quality, width×height+aspect, strip metadata.
+ * Exposes: format, quality, width×height+aspect+orientation+unit, resample, strip metadata.
+ * Mode toggle (auto/manual) is also here.
  */
 export function createSimpleSettings(store: QueueStore): HTMLElement {
   const wrapper = document.createElement('div');
@@ -80,9 +81,31 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   heightInput.className = 'rd-dim-input';
   heightInput.setAttribute('aria-label', 'Height in pixels');
 
+  // Unit toggle: px / %
+  const unitToggle = document.createElement('div');
+  unitToggle.className = 'rd-unit-toggle';
+  unitToggle.setAttribute('role', 'group');
+  unitToggle.setAttribute('aria-label', 'Dimension unit');
+
+  const pxBtn = document.createElement('button');
+  pxBtn.type = 'button';
+  pxBtn.className = 'rd-unit-btn';
+  pxBtn.textContent = 'px';
+  pxBtn.setAttribute('aria-pressed', 'true');
+
+  const pctBtn = document.createElement('button');
+  pctBtn.type = 'button';
+  pctBtn.className = 'rd-unit-btn';
+  pctBtn.textContent = '%';
+  pctBtn.setAttribute('aria-pressed', 'false');
+
+  unitToggle.appendChild(pxBtn);
+  unitToggle.appendChild(pctBtn);
+
   dimWrapper.appendChild(widthInput);
   dimWrapper.appendChild(dimSep);
   dimWrapper.appendChild(heightInput);
+  dimWrapper.appendChild(unitToggle);
   dimsRow.control.appendChild(dimWrapper);
 
   // ── Aspect row ────────────────────────────────────────────────────────────
@@ -97,6 +120,37 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   aspectLabel.append(' Maintain aspect ratio');
   aspectRow.control.appendChild(aspectLabel);
 
+  // ── Preserve orientation row ──────────────────────────────────────────────
+  const orientRow = makeRow('');
+  const orientLabel = document.createElement('label');
+  orientLabel.className = 'rd-checkbox-label';
+  const orientCheckbox = document.createElement('input');
+  orientCheckbox.type = 'checkbox';
+  orientCheckbox.className = 'rd-checkbox';
+  orientCheckbox.setAttribute('aria-label', 'Preserve orientation');
+  orientCheckbox.title = 'When typing dimensions, the value applies to the longer side of the source image.';
+  orientLabel.appendChild(orientCheckbox);
+  orientLabel.append(' Preserve orientation');
+  orientLabel.title = 'When typing dimensions, the value applies to the longer side of the source image.';
+  orientRow.control.appendChild(orientLabel);
+
+  // ── Resample row ──────────────────────────────────────────────────────────
+  const resampleRow = makeRow('Resample');
+  const resampleSelect = document.createElement('select');
+  resampleSelect.className = 'rd-select';
+  const resampleOptions: { value: PerFileSettings['resample']; label: string }[] = [
+    { value: 'high',     label: 'High (default)' },
+    { value: 'bilinear', label: 'Bilinear'        },
+    { value: 'nearest',  label: 'Nearest'         },
+  ];
+  resampleOptions.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    resampleSelect.appendChild(option);
+  });
+  resampleRow.control.appendChild(resampleSelect);
+
   // ── Strip metadata row ────────────────────────────────────────────────────
   const stripRow = makeRow('');
   const stripLabel = document.createElement('label');
@@ -109,12 +163,38 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.control.appendChild(stripLabel);
 
+  // ── Mode row (Auto / Manual) ──────────────────────────────────────────────
+  const modeRow = makeRow('Mode');
+  const modeToggle = document.createElement('div');
+  modeToggle.className = 'rd-unit-toggle';
+  modeToggle.setAttribute('role', 'group');
+  modeToggle.setAttribute('aria-label', 'Queue mode');
+
+  const autoBtn = document.createElement('button');
+  autoBtn.type = 'button';
+  autoBtn.className = 'rd-unit-btn';
+  autoBtn.textContent = 'Auto';
+  autoBtn.title = 'Queue starts converting automatically when files are added.';
+
+  const manualBtn = document.createElement('button');
+  manualBtn.type = 'button';
+  manualBtn.className = 'rd-unit-btn';
+  manualBtn.textContent = 'Manual';
+  manualBtn.title = 'Queue waits for you to press Convert.';
+
+  modeToggle.appendChild(autoBtn);
+  modeToggle.appendChild(manualBtn);
+  modeRow.control.appendChild(modeToggle);
+
   // ── Assemble ──────────────────────────────────────────────────────────────
   wrapper.appendChild(formatRow.el);
   wrapper.appendChild(qualityRow.el);
   wrapper.appendChild(dimsRow.el);
   wrapper.appendChild(aspectRow.el);
+  wrapper.appendChild(orientRow.el);
+  wrapper.appendChild(resampleRow.el);
   wrapper.appendChild(stripRow.el);
+  wrapper.appendChild(modeRow.el);
 
   // ── Sync helpers ──────────────────────────────────────────────────────────
 
@@ -126,13 +206,60 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
     qualitySlider.disabled = lossless;
     qualityReadout.style.display = lossless ? 'none' : '';
     losslessNote.style.display = lossless ? '' : 'none';
+
+    const isPct = defaults.dimensionUnit === 'percent';
+    if (isPct) {
+      widthInput.max = '999';
+      heightInput.max = '999';
+      widthInput.placeholder = 'W%';
+      heightInput.placeholder = 'H%';
+      widthInput.setAttribute('aria-label', 'Width as percent of original');
+      heightInput.setAttribute('aria-label', 'Height as percent of original');
+    } else {
+      widthInput.removeAttribute('max');
+      heightInput.removeAttribute('max');
+      widthInput.placeholder = 'W';
+      heightInput.placeholder = 'H';
+      widthInput.setAttribute('aria-label', 'Width in pixels');
+      heightInput.setAttribute('aria-label', 'Height in pixels');
+    }
     widthInput.value = defaults.width !== null ? String(defaults.width) : '';
     heightInput.value = defaults.height !== null ? String(defaults.height) : '';
+
+    // Unit toggle state
+    pxBtn.setAttribute('aria-pressed', isPct ? 'false' : 'true');
+    pctBtn.setAttribute('aria-pressed', isPct ? 'true' : 'false');
+    pxBtn.classList.toggle('rd-unit-btn--active', !isPct);
+    pctBtn.classList.toggle('rd-unit-btn--active', isPct);
+
     aspectCheckbox.checked = defaults.maintainAspect;
     stripCheckbox.checked = defaults.stripMetadata;
+    resampleSelect.value = defaults.resample;
+
+    // Preserve orientation: disabled when maintainAspect=false OR percent mode
+    const orientEnabled = defaults.maintainAspect && !isPct;
+    orientCheckbox.disabled = !orientEnabled;
+    orientLabel.style.opacity = orientEnabled ? '' : '0.4';
+    orientCheckbox.checked = orientEnabled ? defaults.preserveOrientation : false;
+  }
+
+  function syncModeFromSettings(): void {
+    const { mode } = store.getQueueSettings();
+    const isAuto = mode === 'auto';
+    autoBtn.setAttribute('aria-pressed', isAuto ? 'true' : 'false');
+    manualBtn.setAttribute('aria-pressed', isAuto ? 'false' : 'true');
+    autoBtn.classList.toggle('rd-unit-btn--active', isAuto);
+    manualBtn.classList.toggle('rd-unit-btn--active', !isAuto);
   }
 
   syncFromDefaults(store.getGlobalDefaults());
+  syncModeFromSettings();
+
+  // Re-sync when store changes externally
+  store.subscribe(() => {
+    syncFromDefaults(store.getGlobalDefaults());
+    syncModeFromSettings();
+  });
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
@@ -147,11 +274,23 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
     store.setGlobalDefaults({ quality: q });
   });
 
+  pxBtn.addEventListener('click', () => {
+    store.setGlobalDefaults({ dimensionUnit: 'px', width: null, height: null });
+    syncFromDefaults(store.getGlobalDefaults());
+  });
+
+  pctBtn.addEventListener('click', () => {
+    store.setGlobalDefaults({ dimensionUnit: 'percent', width: null, height: null, preserveOrientation: false });
+    syncFromDefaults(store.getGlobalDefaults());
+  });
+
   widthInput.addEventListener('change', () => {
     const raw = widthInput.value.trim();
     const defaults = store.getGlobalDefaults();
+    const isPct = defaults.dimensionUnit === 'percent';
+
     if (raw === '') {
-      if (defaults.maintainAspect) {
+      if (!isPct && defaults.maintainAspect) {
         store.setGlobalDefaults({ width: null, height: null });
         heightInput.value = '';
       } else {
@@ -159,6 +298,14 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
       }
       return;
     }
+
+    if (isPct) {
+      const v = Math.max(1, Math.min(999, Math.round(Number(raw))));
+      widthInput.value = String(v);
+      store.setGlobalDefaults({ width: v });
+      return;
+    }
+
     const w = Math.max(1, Math.round(Number(raw)));
     if (defaults.maintainAspect && defaults.width !== null && defaults.height !== null) {
       const h = computePairedDimension({
@@ -177,8 +324,10 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   heightInput.addEventListener('change', () => {
     const raw = heightInput.value.trim();
     const defaults = store.getGlobalDefaults();
+    const isPct = defaults.dimensionUnit === 'percent';
+
     if (raw === '') {
-      if (defaults.maintainAspect) {
+      if (!isPct && defaults.maintainAspect) {
         store.setGlobalDefaults({ width: null, height: null });
         widthInput.value = '';
       } else {
@@ -186,6 +335,14 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
       }
       return;
     }
+
+    if (isPct) {
+      const v = Math.max(1, Math.min(999, Math.round(Number(raw))));
+      heightInput.value = String(v);
+      store.setGlobalDefaults({ height: v });
+      return;
+    }
+
     const h = Math.max(1, Math.round(Number(raw)));
     if (defaults.maintainAspect && defaults.width !== null && defaults.height !== null) {
       const w = computePairedDimension({
@@ -202,11 +359,36 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   });
 
   aspectCheckbox.addEventListener('change', () => {
-    store.setGlobalDefaults({ maintainAspect: aspectCheckbox.checked });
+    const maintainAspect = aspectCheckbox.checked;
+    // If disabling aspect, also force-disable preserveOrientation
+    if (!maintainAspect) {
+      store.setGlobalDefaults({ maintainAspect: false, preserveOrientation: false });
+    } else {
+      store.setGlobalDefaults({ maintainAspect: true });
+    }
+    syncFromDefaults(store.getGlobalDefaults());
+  });
+
+  orientCheckbox.addEventListener('change', () => {
+    store.setGlobalDefaults({ preserveOrientation: orientCheckbox.checked });
+  });
+
+  resampleSelect.addEventListener('change', () => {
+    store.setGlobalDefaults({ resample: resampleSelect.value as PerFileSettings['resample'] });
   });
 
   stripCheckbox.addEventListener('change', () => {
     store.setGlobalDefaults({ stripMetadata: stripCheckbox.checked });
+  });
+
+  autoBtn.addEventListener('click', () => {
+    store.setQueueSettings({ mode: 'auto', autoStart: true });
+    syncModeFromSettings();
+  });
+
+  manualBtn.addEventListener('click', () => {
+    store.setQueueSettings({ mode: 'manual', autoStart: false });
+    syncModeFromSettings();
   });
 
   return wrapper;

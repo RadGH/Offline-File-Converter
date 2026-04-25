@@ -72,6 +72,9 @@ function makeInput(
       stripMetadata: true,
       pngOptimize: false,
       upscale: false,
+      preserveOrientation: false,
+      resample: 'high' as const,
+      dimensionUnit: 'px' as const,
       ...extraSettings,
     },
   };

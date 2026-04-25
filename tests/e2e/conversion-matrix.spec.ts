@@ -111,7 +111,7 @@ async function uploadAndConvert(
   });
 
   // Set global default format before upload — new files inherit it
-  await page.locator('.global-defaults .settings-panel__select').first().selectOption(outputFormat);
+  await page.locator('.simple-settings .rd-select').first().selectOption(outputFormat);
 
   // Upload file
   const fileInput = page.locator('input[type="file"]');

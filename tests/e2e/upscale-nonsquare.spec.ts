@@ -44,7 +44,7 @@ test.describe('Upscale handles non-square images (edge-tile padding)', () => {
       test.skip();
       return;
     }
-    await page.goto('/');
+    await page.goto('/upscale.html');
     test.setTimeout(180_000);
 
     const result = await page.evaluate(

@@ -210,3 +210,32 @@ Build a redesign.html page with the same functions but:
 
 goal: no need to scroll down to use the app, except in mobile
 
+## 2026-04-25 10:14
+
+Go live with the new layout and remove the classic design link from the bottom. Fix an issue when dragging the handle to compare it counts as dragging and dropping the image again and adds another photo, only do that for actual drag and drops not when dragging the compare tool. Fix the compare tool photos do not line up properly, one on the left is left aligned but the right is centered.
+
+Add "Preserve Orientation" checkbox below Maintain Aspect Ratio disabled if aspect ratio is unchecked, if Preserve Orientation is checked and you specify W > H and upload a portrait photo where H > W, swap the two so that the typed width applies to its height instead. Goal: If I set 2000 width and no height normally it would resize width to 2000 and height to whatever, but if H>W the 2000 applies to height instead, so that the unspecified dimension is always the smaller size in this case. Can we also add a "Resample" option that defaults to Lanczos or does that add overhead? Can we add a % toggle button next to W/H input that if checked, converts size to % scale instead of absolute. Is it possible to have HEIC as an output or is that a silly idea?
+
+Any questions before we start
+
+## 2026-04-25 10:23
+
+1. Go with C and move it to upscale.html. Do not link to it.
+2. Go with your suggestion 3 options
+3. OK Skip it
+4. a) OK to disable preserve orientation when % mode, b) ok I think the issue is just that its easy to grab the <img> tag by mistake and starts dragging so just ensure that is fixed too, c) ok
+
+- Can we also hide "Retry Errored" button unless it becomes active? I can't imagine that ever being needed except in a rare situation.
+- Can we allow setting queue to auto (default) or manual. If set to manual, you can upload photos but they aren't processed until you click "convert" button or "convert all". And in both cases, already-converted images can we add a "Re-apply" button that uses the original file and re-converts matching the new settings? This way if I upload a 1000x1000 image and forget to change size to 250x250 I can type the new size and just click "Reconvert" or "Reconvert All". You can optimize the UX of these buttons / naming convention if you can think of more streamlined way to achieve. Any questions for that?
+
+## 2026-04-25 10:29
+
+1. A is what I meant. It might be nice if the re-converted item is added as a new item in the list so that you can compare to the previous conversion to see % size difference. I might want to disable that later and just update the original instead, need to test it first.
+2. Leave existing items alone. Maybe the "Re-convert" button only appears if the settings changed relative to the items current settings?
+3. Oh yes exactly.
+Auto vs Manual: Yes auto is current behavior and should still be the default. 
+
+- Also in case it is not already the case, settings should be saved locally (I think this already happens just want to double check).
+- Can we update the privacy page to match the new warm design
+- Change "100% Private" to "100% Local"
+

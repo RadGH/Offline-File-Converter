@@ -1,11 +1,12 @@
 /**
  * QueueControls — panel with start/pause/resume, concurrency settings,
- * clear actions, retry-all-errored, and live active/queued counts.
+ * clear actions, retry-all-errored, convert-all, re-convert-all, and live counts.
  */
 
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { createDownloadZipButton } from '@/components/DownloadZipButton';
+import { settingsDiffer } from '@/lib/utils/settings-differ';
 
 export function createQueueControls(
   store: QueueStore,
@@ -79,6 +80,16 @@ export function createQueueControls(
   const actionsBar = document.createElement('div');
   actionsBar.className = 'queue-controls__actions';
 
+  const convertAllBtn = document.createElement('button');
+  convertAllBtn.type = 'button';
+  convertAllBtn.className = 'queue-controls__convert-all';
+  convertAllBtn.textContent = 'Convert all (0)';
+
+  const reconvertAllBtn = document.createElement('button');
+  reconvertAllBtn.type = 'button';
+  reconvertAllBtn.className = 'queue-controls__reconvert-all';
+  reconvertAllBtn.textContent = 'Re-convert all (0)';
+
   const retryAllBtn = document.createElement('button');
   retryAllBtn.type = 'button';
   retryAllBtn.className = 'queue-controls__retry-all';
@@ -96,6 +107,8 @@ export function createQueueControls(
 
   const downloadZipBtn = createDownloadZipButton(store);
 
+  actionsBar.appendChild(convertAllBtn);
+  actionsBar.appendChild(reconvertAllBtn);
   actionsBar.appendChild(retryAllBtn);
   actionsBar.appendChild(clearCompletedBtn);
   actionsBar.appendChild(clearAllBtn);
@@ -135,8 +148,23 @@ export function createQueueControls(
     parallelCount.value = String(isOne ? 2 : settings.concurrency);
     parallelCount.disabled = isOne;
 
-    // Retry-all button: only enabled when there are errored items
-    retryAllBtn.disabled = !items.some(i => i.status === 'error' || i.status === 'cancelled');
+    // Retry-all button: only visible+enabled when there are errored/cancelled items
+    const erroredCount = items.filter(i => i.status === 'error' || i.status === 'cancelled').length;
+    retryAllBtn.disabled = erroredCount === 0;
+    retryAllBtn.style.display = erroredCount > 0 ? '' : 'none';
+
+    // Convert-all: shown when there are waiting items
+    const waitingCount = items.filter(i => i.status === 'waiting').length;
+    convertAllBtn.textContent = `Convert all (${waitingCount})`;
+    convertAllBtn.disabled = waitingCount === 0;
+    convertAllBtn.style.display = waitingCount > 0 ? '' : 'none';
+
+    // Re-convert-all: shown when done items have stale settings
+    const globalDefaults = store.getGlobalDefaults();
+    const staleItems = items.filter(i => i.status === 'done' && settingsDiffer(i.settings, globalDefaults));
+    reconvertAllBtn.textContent = `Re-convert all (${staleItems.length})`;
+    reconvertAllBtn.disabled = staleItems.length === 0;
+    reconvertAllBtn.style.display = staleItems.length > 0 ? '' : 'none';
 
     // Clear-completed: only enabled when there are done items
     clearCompletedBtn.disabled = !items.some(i => i.status === 'done');
@@ -176,6 +204,19 @@ export function createQueueControls(
       store.setQueueSettings({ concurrency: n });
       syncUI();
     }
+  });
+
+  convertAllBtn.addEventListener('click', () => {
+    processor.start();
+  });
+
+  reconvertAllBtn.addEventListener('click', () => {
+    const { items } = store.getState();
+    const globalDefaults = store.getGlobalDefaults();
+    const staleFiles = items
+      .filter(i => i.status === 'done' && settingsDiffer(i.settings, globalDefaults))
+      .map(i => i.file);
+    if (staleFiles.length > 0) store.addFiles(staleFiles);
   });
 
   retryAllBtn.addEventListener('click', () => {

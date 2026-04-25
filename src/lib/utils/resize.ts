@@ -27,6 +27,10 @@ export interface ApplyResizeTarget {
   width: number | null;
   height: number | null;
   maintainAspect: boolean;
+  /** See PerFileSettings.preserveOrientation */
+  preserveOrientation?: boolean;
+  /** See PerFileSettings.dimensionUnit */
+  dimensionUnit?: 'px' | 'percent';
 }
 
 export interface Dimensions {
@@ -39,6 +43,10 @@ export interface Dimensions {
  *
  * Rules:
  *   - Both null → return original
+ *   - dimensionUnit='percent': treat width/height as percentages (1–200) of source.
+ *     null means "100%". With maintainAspect, both axes use the same percent.
+ *   - maintainAspect + preserveOrientation + px: typed value applies to the LONGER
+ *     source side so portrait images stay portrait and landscape stays landscape.
  *   - maintainAspect + only width set → height proportional
  *   - maintainAspect + only height set → width proportional
  *   - maintainAspect + both set → fit inside box (scale so both fit, never exceed)
@@ -48,8 +56,59 @@ export interface Dimensions {
  * All results are rounded to integers.
  */
 export function applyResize(original: Dimensions, target: ApplyResizeTarget): Dimensions {
-  const { width: tw, height: th, maintainAspect } = target;
   const { width: ow, height: oh } = original;
+  const { maintainAspect, preserveOrientation = false, dimensionUnit = 'px' } = target;
+  let { width: tw, height: th } = target;
+
+  // ── Percent mode ────────────────────────────────────────────────────────────
+  if (dimensionUnit === 'percent') {
+    // null = 100%
+    const pctW = tw !== null ? tw / 100 : 1;
+    const pctH = th !== null ? th / 100 : 1;
+    if (maintainAspect) {
+      // Use width percent if set, else height percent; both axes same ratio.
+      const pct = tw !== null ? pctW : pctH;
+      return {
+        width: Math.round(ow * pct),
+        height: Math.round(oh * pct),
+      };
+    }
+    return {
+      width: Math.round(ow * pctW),
+      height: Math.round(oh * pctH),
+    };
+  }
+
+  // ── Pixel mode ──────────────────────────────────────────────────────────────
+
+  // Preserve orientation: swap typed dimensions so the value applies to the
+  // longer source side. Only relevant when maintainAspect=true.
+  if (preserveOrientation && maintainAspect && ow > 0 && oh > 0) {
+    const srcIsPortrait = oh > ow;
+    if (tw !== null && th !== null) {
+      // Both set: ensure the typed (W, H) orientation matches source orientation.
+      const typedIsLandscape = tw >= th;
+      if (srcIsPortrait && typedIsLandscape) {
+        // Source portrait but typed as landscape — swap
+        [tw, th] = [th, tw];
+      } else if (!srcIsPortrait && !typedIsLandscape) {
+        // Source landscape but typed as portrait — swap
+        [tw, th] = [th, tw];
+      }
+    } else if (tw !== null && th === null) {
+      // Only width set: if source is portrait, the typed value should be height
+      if (srcIsPortrait) {
+        th = tw;
+        tw = null;
+      }
+    } else if (th !== null && tw === null) {
+      // Only height set: if source is landscape, the typed value should be width
+      if (!srcIsPortrait) {
+        tw = th;
+        th = null;
+      }
+    }
+  }
 
   // Both null → no resize
   if (tw === null && th === null) {
