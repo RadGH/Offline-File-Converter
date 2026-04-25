@@ -197,3 +197,16 @@ failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE: /mnt/vss/_work/1/s/onnxru
 
 Can we implement #1 AND #2?
 
+## 2026-04-24 21:58
+
+is it live at https://convert.radgh.com/
+
+## 2026-04-25 08:54
+
+Build a redesign.html page with the same functions but:
+- remove upscale options 
+- make entire app fit on screen in desktop
+- focus on clean, modern, simple design, friendly and cozy
+
+goal: no need to scroll down to use the app, except in mobile
+

@@ -6,7 +6,7 @@ test.describe('Layout', () => {
     await page.goto('/');
 
     await expect(page.locator('.site-header h1')).toContainText('Convert & compress');
-    await expect(page.locator('.converter-col')).toBeVisible();
+    await expect(page.locator('.d2-card')).toBeVisible();
     await expect(page.locator('.drop-zone')).toBeVisible();
     await expect(page.locator('.site-footer')).toContainText('No uploads');
   });

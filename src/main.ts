@@ -123,6 +123,7 @@ footer.innerHTML = `
       <a href="#" class="site-footer__link" data-action="manage-cookies">Manage cookies</a>
       <a href="https://radleysustaire.com/" class="site-footer__link" target="_blank" rel="noopener">By Radley Sustaire</a>
       <a href="https://github.com/RadGH/Offline-File-Converter" class="site-footer__link" target="_blank" rel="noopener">GitHub</a>
+      <a href="/redesign.html" class="site-footer__link">Try the new design</a>
     </nav>
   </div>
 `;
