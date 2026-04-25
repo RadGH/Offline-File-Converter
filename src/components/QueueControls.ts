@@ -207,7 +207,19 @@ export function createQueueControls(
   });
 
   convertAllBtn.addEventListener('click', () => {
-    processor.start();
+    // In manual mode the processor is paused; iterate waiting items and run
+    // them individually so the queue doesn't auto-pickup later additions.
+    // In auto mode this is a no-op (processor is already running and waiting
+    // items are already being picked up).
+    const { items } = store.getState();
+    const { mode } = store.getQueueSettings();
+    if (mode === 'manual') {
+      for (const it of items) {
+        if (it.status === 'waiting') processor.runItem(it.id);
+      }
+    } else {
+      processor.start();
+    }
   });
 
   reconvertAllBtn.addEventListener('click', () => {

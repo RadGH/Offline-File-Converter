@@ -1,4 +1,5 @@
 import type { QueueStore, PerFileSettings, OutputFormat } from '@/lib/queue/store';
+import type { QueueProcessor } from '@/lib/queue/processor';
 import { computePairedDimension } from '@/lib/utils/resize';
 
 const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
@@ -22,7 +23,7 @@ function isLossless(fmt: OutputFormat): boolean {
  * Exposes: format, quality, width×height+aspect+orientation+unit, resample, strip metadata.
  * Mode toggle (auto/manual) is also here.
  */
-export function createSimpleSettings(store: QueueStore): HTMLElement {
+export function createSimpleSettings(store: QueueStore, processor: QueueProcessor): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.className = 'simple-settings';
 
@@ -81,31 +82,18 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   heightInput.className = 'rd-dim-input';
   heightInput.setAttribute('aria-label', 'Height in pixels');
 
-  // Unit toggle: px / %
-  const unitToggle = document.createElement('div');
-  unitToggle.className = 'rd-unit-toggle';
-  unitToggle.setAttribute('role', 'group');
-  unitToggle.setAttribute('aria-label', 'Dimension unit');
-
-  const pxBtn = document.createElement('button');
-  pxBtn.type = 'button';
-  pxBtn.className = 'rd-unit-btn';
-  pxBtn.textContent = 'px';
-  pxBtn.setAttribute('aria-pressed', 'true');
-
+  // Single % toggle button (unchecked = px, checked = percent of source)
   const pctBtn = document.createElement('button');
   pctBtn.type = 'button';
-  pctBtn.className = 'rd-unit-btn';
+  pctBtn.className = 'rd-pct-toggle';
   pctBtn.textContent = '%';
   pctBtn.setAttribute('aria-pressed', 'false');
-
-  unitToggle.appendChild(pxBtn);
-  unitToggle.appendChild(pctBtn);
+  pctBtn.title = 'Toggle: interpret W/H as a percent of the source';
 
   dimWrapper.appendChild(widthInput);
   dimWrapper.appendChild(dimSep);
   dimWrapper.appendChild(heightInput);
-  dimWrapper.appendChild(unitToggle);
+  dimWrapper.appendChild(pctBtn);
   dimsRow.control.appendChild(dimWrapper);
 
   // ── Aspect row ────────────────────────────────────────────────────────────
@@ -163,8 +151,8 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.control.appendChild(stripLabel);
 
-  // ── Mode row (Auto / Manual) ──────────────────────────────────────────────
-  const modeRow = makeRow('Mode');
+  // ── Queue row (Auto / Manual) ─────────────────────────────────────────────
+  const modeRow = makeRow('Queue');
   const modeToggle = document.createElement('div');
   modeToggle.className = 'rd-unit-toggle';
   modeToggle.setAttribute('role', 'group');
@@ -192,8 +180,8 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   wrapper.appendChild(dimsRow.el);
   wrapper.appendChild(aspectRow.el);
   wrapper.appendChild(orientRow.el);
-  wrapper.appendChild(resampleRow.el);
   wrapper.appendChild(stripRow.el);
+  wrapper.appendChild(resampleRow.el);
   wrapper.appendChild(modeRow.el);
 
   // ── Sync helpers ──────────────────────────────────────────────────────────
@@ -201,11 +189,16 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
   function syncFromDefaults(defaults: PerFileSettings): void {
     formatSelect.value = defaults.format;
     const lossless = isLossless(defaults.format);
+
+    // Quality: lossy → show slider+readout. Lossless → hide both, show "Lossless".
     qualitySlider.value = String(defaults.quality);
     qualityReadout.textContent = String(defaults.quality);
-    qualitySlider.disabled = lossless;
+    qualitySlider.style.display = lossless ? 'none' : '';
     qualityReadout.style.display = lossless ? 'none' : '';
     losslessNote.style.display = lossless ? '' : 'none';
+
+    // Resample only relevant for lossy formats per spec — hide row otherwise.
+    resampleRow.el.style.display = lossless ? 'none' : '';
 
     const isPct = defaults.dimensionUnit === 'percent';
     if (isPct) {
@@ -226,11 +219,9 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
     widthInput.value = defaults.width !== null ? String(defaults.width) : '';
     heightInput.value = defaults.height !== null ? String(defaults.height) : '';
 
-    // Unit toggle state
-    pxBtn.setAttribute('aria-pressed', isPct ? 'false' : 'true');
+    // Single-button toggle: pressed = percent mode active.
     pctBtn.setAttribute('aria-pressed', isPct ? 'true' : 'false');
-    pxBtn.classList.toggle('rd-unit-btn--active', !isPct);
-    pctBtn.classList.toggle('rd-unit-btn--active', isPct);
+    pctBtn.classList.toggle('rd-pct-toggle--active', isPct);
 
     aspectCheckbox.checked = defaults.maintainAspect;
     stripCheckbox.checked = defaults.stripMetadata;
@@ -274,13 +265,15 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
     store.setGlobalDefaults({ quality: q });
   });
 
-  pxBtn.addEventListener('click', () => {
-    store.setGlobalDefaults({ dimensionUnit: 'px', width: null, height: null });
-    syncFromDefaults(store.getGlobalDefaults());
-  });
-
   pctBtn.addEventListener('click', () => {
-    store.setGlobalDefaults({ dimensionUnit: 'percent', width: null, height: null, preserveOrientation: false });
+    const wasPct = store.getGlobalDefaults().dimensionUnit === 'percent';
+    if (wasPct) {
+      // Toggling OFF — back to px
+      store.setGlobalDefaults({ dimensionUnit: 'px', width: null, height: null });
+    } else {
+      // Toggling ON — to percent. Force-disable preserveOrientation.
+      store.setGlobalDefaults({ dimensionUnit: 'percent', width: null, height: null, preserveOrientation: false });
+    }
     syncFromDefaults(store.getGlobalDefaults());
   });
 
@@ -383,11 +376,15 @@ export function createSimpleSettings(store: QueueStore): HTMLElement {
 
   autoBtn.addEventListener('click', () => {
     store.setQueueSettings({ mode: 'auto', autoStart: true });
+    processor.start();
     syncModeFromSettings();
   });
 
   manualBtn.addEventListener('click', () => {
     store.setQueueSettings({ mode: 'manual', autoStart: false });
+    // Pause so any current waiting items don't continue auto-processing.
+    // In-flight items finish naturally; new items stay 'waiting' until clicked.
+    processor.pause();
     syncModeFromSettings();
   });
 

@@ -220,7 +220,12 @@ export function createQueueItemEl(
 
   const badge = document.createElement('span');
   badge.className = `queue-item__badge queue-item__badge--${item.status}`;
-  badge.textContent = STATUS_LABELS[item.status] ?? item.status;
+  // In manual mode, a "waiting" item is really "Pending" (awaiting user click).
+  const isManual = store.getQueueSettings().mode === 'manual';
+  badge.textContent =
+    item.status === 'waiting' && isManual
+      ? 'Pending'
+      : (STATUS_LABELS[item.status] ?? item.status);
 
   // Actions
   const actions = document.createElement('div');

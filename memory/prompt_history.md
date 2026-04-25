@@ -239,3 +239,10 @@ Auto vs Manual: Yes auto is current behavior and should still be the default.
 - Can we update the privacy page to match the new warm design
 - Change "100% Private" to "100% Local"
 
+## 2026-04-25 11:46
+
+Change the "px/%" button to only be a "%" button that starts unchecked and can be toggled on or off. Currently it is too wide and gets cut off. Reduce the left/right padding on inputs/selects .rd-dim-input to text-align: left.
+I changed Mode to Manual, selected a file, and it was automatically converted. It should instead say "Pending" and wait for me to click "Convert" button. Change "Mode" to "Queue".
+Move Resample below Strip Metadata in order to keep the 3 checkboxes together.
+Resample should only show when applicable. It should not show for PNG for example. If Quality slider is disabled, just hide it, and only show the text "Lossless" instead.
+

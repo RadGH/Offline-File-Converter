@@ -100,7 +100,7 @@ settingsCard.className = 'rd-card';
 const settingsCardTitle = document.createElement('p');
 settingsCardTitle.className = 'rd-card__title';
 settingsCardTitle.textContent = 'Settings';
-const simpleSettings = createSimpleSettings(store);
+const simpleSettings = createSimpleSettings(store, processor);
 settingsCard.appendChild(settingsCardTitle);
 settingsCard.appendChild(simpleSettings);
 

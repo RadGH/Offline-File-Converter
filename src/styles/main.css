@@ -270,7 +270,7 @@ body {
 /* Select */
 .rd-select {
   width: 100%;
-  padding: 0.35rem 0.55rem;
+  padding: 0.35rem 0.4rem;
   border: 1px solid var(--border-med);
   border-radius: var(--radius-sm);
   background: var(--cream);
@@ -327,8 +327,8 @@ body {
 }
 
 .rd-dim-input {
-  width: 68px;
-  padding: 0.3rem 0.45rem;
+  width: 64px;
+  padding: 0.3rem 0.25rem;
   border: 1px solid var(--border-med);
   border-radius: var(--radius-sm);
   background: var(--cream);
@@ -337,7 +337,7 @@ body {
   font-size: 0.82rem;
   outline: none;
   transition: border-color 0.15s;
-  text-align: center;
+  text-align: left;
 }
 
 .rd-dim-input:focus {
@@ -1270,4 +1270,39 @@ body {
     overflow-y: visible;
     min-height: 200px;
   }
+}
+
+/* Single % toggle button — sits next to W/H inputs */
+.rd-pct-toggle {
+  flex-shrink: 0;
+  padding: 0.25rem 0.45rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid var(--border-med);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  min-width: 30px;
+  line-height: 1.1;
+}
+
+.rd-pct-toggle:hover {
+  background: var(--cream-3);
+  color: var(--text);
+}
+
+.rd-pct-toggle--active,
+.rd-pct-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.rd-pct-toggle--active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
