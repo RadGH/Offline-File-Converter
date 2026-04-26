@@ -65,6 +65,7 @@ export function getAboutHTML(): string {
     <p class="about-github">
       <a href="https://github.com/RadGH/Offline-File-Converter" target="_blank" rel="noopener noreferrer">View source on GitHub</a>
       &nbsp;·&nbsp; Built by <a href="https://radleysustaire.com/" target="_blank" rel="noopener noreferrer">Radley Sustaire</a>
+      with <a href="https://claude.com/" target="_blank" rel="noopener noreferrer">Claude</a> AI
     </p>
   `;
 }

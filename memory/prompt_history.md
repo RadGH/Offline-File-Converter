@@ -285,3 +285,7 @@ DONE
 Compare
 Download on separate line, causes horizontal scroll or need to zoom out. Ensure no layout shifts besides adding scrollable areas.
 
+## 2026-04-25 19:34
+
+Add to about page made by radley with claude using ai
+
