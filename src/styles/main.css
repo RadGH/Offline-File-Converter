@@ -1279,11 +1279,34 @@ body {
     border-right: none;
     border-bottom: 1px solid var(--border);
     overflow-y: visible;
+    min-width: 0;
   }
 
   .rd-right {
     overflow: visible;
     min-height: 60vh;
+    min-width: 0;
+  }
+
+  /* Defense: prevent any inner overflow from forcing horizontal page scroll
+     and pushing the footer past the viewport edge on iOS Safari. */
+  body { overflow-x: hidden; }
+  .rd-main, .rd-queue-card, .file-queue, .file-queue__list { min-width: 0; }
+
+  /* Queue items wrap onto multiple rows so Compare / Download / saved-bubble
+     don't blow out the page width on small screens. */
+  .queue-item {
+    flex-wrap: wrap;
+    row-gap: 0.45rem;
+  }
+  .queue-item__info {
+    /* Take the majority of row-1 after the thumb, forcing later children
+       (saved bubble, status badge, action buttons, remove) onto row 2. */
+    flex: 1 1 60%;
+    min-width: 0;
+  }
+  .queue-item__actions {
+    flex-wrap: wrap;
   }
 
   .rd-queue-card {

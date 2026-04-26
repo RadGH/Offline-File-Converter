@@ -278,3 +278,10 @@ Fix modal on mobile too far down screen. If the model doesn’t fit on screen it
 
 Footer mobile let’s change About Privacy and Cookie links to be row and By Radley Sustaire and Github links to be on one line. Add github icon to that link, see ../assets for font awesome and just use the svg from there.
 
+## 2026-04-25 17:35
+
+On mobile for queue items put +1%
+DONE
+Compare
+Download on separate line, causes horizontal scroll or need to zoom out. Ensure no layout shifts besides adding scrollable areas.
+
