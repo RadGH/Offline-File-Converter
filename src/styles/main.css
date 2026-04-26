@@ -1460,6 +1460,7 @@ body {
   box-shadow: var(--shadow-drop);
   width: 100%;
   max-width: 680px;
+  height: 80dvh;
   max-height: 90dvh;
   display: flex;
   flex-direction: column;
