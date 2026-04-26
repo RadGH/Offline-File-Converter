@@ -53,9 +53,6 @@ export function getPrivacyHTML(): string {
       <li><strong>Google Analytics</strong> (analytics) — only if you consent.</li>
       <li><strong>GitHub Pages</strong> (hosting) — serves this site's static files. GitHub may log standard request metadata (IP, user-agent) server-side; this is outside our control. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub's Privacy Statement</a>.</li>
       <li>
-        <strong>Hugging Face Hub</strong> (optional, upscale variant only) — the AI upscaler model is hosted by Hugging Face. It is only fetched when you explicitly click <em>Download model</em>. Once downloaded, the ~18 MB file is cached in your browser's IndexedDB and never re-fetched. Hugging Face sees a one-time static-asset request (IP, user-agent); no image data is sent.
-      </li>
-      <li>
         <strong>Lazy-loaded code chunks</strong> (WebAssembly codecs for AVIF, HEIC, PNG optimisation, GIF, ZIP packing) are served from this domain only — no third-party CDN is used.
       </li>
     </ul>
