@@ -289,3 +289,31 @@ Download on separate line, causes horizontal scroll or need to zoom out. Ensure 
 
 Add to about page made by radley with claude using ai
 
+## 2026-04-25 22:42
+
+Fix the About modal on dekstop is only like 30px tall it should fit roughly 80% browser heiight on desktop
+
+## 2026-04-26 14:14
+
+Did you push to convert.radgh.com? The desktop popup is still very narrow
+
+## 2026-04-26 14:14
+
+Sorry I meant short
+
+## 2026-04-26 14:14
+
+Sorry I meant short. Just deploy so I can review
+
+## 2026-04-26 14:31
+
+Remove refernece to Hugging Face Hub and upscaling from privacy notice and about page, wherever it is mentioning. No longer a feature except for experimental tab on hidden page.
+
+## 2026-04-26 18:34
+
+Let’s remove the queue/manual modes and just let it always be auto. Remove the option for multi threading in the bottom and just keep that by default if possible. Update about page to match if necessary. These just clean up the site, new focus on simplicity
+
+## 2026-04-26 19:09
+
+Remove the emoji, replace with svg from font awesome located in ../assets or ../references. Add bottom margin to “add images” text because that text is too close to the drop area dotted border
+
