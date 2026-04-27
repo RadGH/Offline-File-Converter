@@ -220,30 +220,11 @@ export function createQueueItemEl(
 
   const badge = document.createElement('span');
   badge.className = `queue-item__badge queue-item__badge--${item.status}`;
-  // In manual mode, a "waiting" item is really "Pending" (awaiting user click).
-  const isManual = store.getQueueSettings().mode === 'manual';
-  badge.textContent =
-    item.status === 'waiting' && isManual
-      ? 'Pending'
-      : (STATUS_LABELS[item.status] ?? item.status);
+  badge.textContent = STATUS_LABELS[item.status] ?? item.status;
 
   // Actions
   const actions = document.createElement('div');
   actions.className = 'queue-item__actions';
-
-  // Per-item "Convert" button: shown when waiting AND queue mode is manual
-  if (item.status === 'waiting') {
-    const queueMode = store.getQueueSettings().mode;
-    if (queueMode === 'manual') {
-      const convertBtn = document.createElement('button');
-      convertBtn.type = 'button';
-      convertBtn.className = 'queue-item__convert-btn';
-      convertBtn.setAttribute('aria-label', `Convert ${item.file.name}`);
-      convertBtn.textContent = 'Convert';
-      convertBtn.addEventListener('click', () => processor.runItem(item.id));
-      actions.appendChild(convertBtn);
-    }
-  }
 
   if (item.status === 'waiting' || item.status === 'processing') {
     const cancelBtn = document.createElement('button');

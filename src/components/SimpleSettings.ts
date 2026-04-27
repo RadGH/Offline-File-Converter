@@ -23,7 +23,7 @@ function isLossless(fmt: OutputFormat): boolean {
  * Exposes: format, quality, width×height+aspect+orientation+unit, resample, strip metadata.
  * Mode toggle (auto/manual) is also here.
  */
-export function createSimpleSettings(store: QueueStore, processor: QueueProcessor): HTMLElement {
+export function createSimpleSettings(store: QueueStore, _processor: QueueProcessor): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.className = 'simple-settings';
 
@@ -151,29 +151,6 @@ export function createSimpleSettings(store: QueueStore, processor: QueueProcesso
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.control.appendChild(stripLabel);
 
-  // ── Queue row (Auto / Manual) ─────────────────────────────────────────────
-  const modeRow = makeRow('Queue');
-  const modeToggle = document.createElement('div');
-  modeToggle.className = 'rd-unit-toggle';
-  modeToggle.setAttribute('role', 'group');
-  modeToggle.setAttribute('aria-label', 'Queue mode');
-
-  const autoBtn = document.createElement('button');
-  autoBtn.type = 'button';
-  autoBtn.className = 'rd-unit-btn';
-  autoBtn.textContent = 'Auto';
-  autoBtn.title = 'Queue starts converting automatically when files are added.';
-
-  const manualBtn = document.createElement('button');
-  manualBtn.type = 'button';
-  manualBtn.className = 'rd-unit-btn';
-  manualBtn.textContent = 'Manual';
-  manualBtn.title = 'Queue waits for you to press Convert.';
-
-  modeToggle.appendChild(autoBtn);
-  modeToggle.appendChild(manualBtn);
-  modeRow.control.appendChild(modeToggle);
-
   // ── Assemble ──────────────────────────────────────────────────────────────
   wrapper.appendChild(formatRow.el);
   wrapper.appendChild(qualityRow.el);
@@ -182,7 +159,9 @@ export function createSimpleSettings(store: QueueStore, processor: QueueProcesso
   wrapper.appendChild(orientRow.el);
   wrapper.appendChild(stripRow.el);
   wrapper.appendChild(resampleRow.el);
-  wrapper.appendChild(modeRow.el);
+
+  // Queue mode is always 'auto' now — ensure stored settings reflect that.
+  store.setQueueSettings({ mode: 'auto', autoStart: true });
 
   // ── Sync helpers ──────────────────────────────────────────────────────────
 
@@ -234,22 +213,11 @@ export function createSimpleSettings(store: QueueStore, processor: QueueProcesso
     orientCheckbox.checked = orientEnabled ? defaults.preserveOrientation : false;
   }
 
-  function syncModeFromSettings(): void {
-    const { mode } = store.getQueueSettings();
-    const isAuto = mode === 'auto';
-    autoBtn.setAttribute('aria-pressed', isAuto ? 'true' : 'false');
-    manualBtn.setAttribute('aria-pressed', isAuto ? 'false' : 'true');
-    autoBtn.classList.toggle('rd-unit-btn--active', isAuto);
-    manualBtn.classList.toggle('rd-unit-btn--active', !isAuto);
-  }
-
   syncFromDefaults(store.getGlobalDefaults());
-  syncModeFromSettings();
 
   // Re-sync when store changes externally
   store.subscribe(() => {
     syncFromDefaults(store.getGlobalDefaults());
-    syncModeFromSettings();
   });
 
   // ── Event handlers ────────────────────────────────────────────────────────
@@ -372,20 +340,6 @@ export function createSimpleSettings(store: QueueStore, processor: QueueProcesso
 
   stripCheckbox.addEventListener('change', () => {
     store.setGlobalDefaults({ stripMetadata: stripCheckbox.checked });
-  });
-
-  autoBtn.addEventListener('click', () => {
-    store.setQueueSettings({ mode: 'auto', autoStart: true });
-    processor.start();
-    syncModeFromSettings();
-  });
-
-  manualBtn.addEventListener('click', () => {
-    store.setQueueSettings({ mode: 'manual', autoStart: false });
-    // Pause so any current waiting items don't continue auto-processing.
-    // In-flight items finish naturally; new items stay 'waiting' until clicked.
-    processor.pause();
-    syncModeFromSettings();
   });
 
   return wrapper;

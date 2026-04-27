@@ -16,9 +16,7 @@ export function getAboutHTML(): string {
     <h2>How to use it</h2>
     <ul>
       <li><strong>Add images</strong> — drop files onto the drop zone, click it to open a file picker, or paste an image from your clipboard anywhere on the page.</li>
-      <li><strong>Queue</strong> — each image appears as a card in the queue. Set your output format and options first, then let the converter run.</li>
-      <li><strong>Auto mode</strong> — conversions start immediately when files are added. Switch to Manual mode if you want to review settings before converting.</li>
-      <li><strong>Manual mode</strong> — press Convert to start a batch, or convert files individually.</li>
+      <li><strong>Convert</strong> — each image appears as a card in the queue and starts converting automatically as soon as it's added.</li>
       <li><strong>Re-convert</strong> — finished items show a Re-convert button. Change settings and run again without re-uploading.</li>
       <li><strong>Compare panel</strong> — click Compare on a finished item to open a side-by-side slider showing before vs. after.</li>
       <li><strong>Download</strong> — download files individually, or use the ZIP button to grab everything at once.</li>

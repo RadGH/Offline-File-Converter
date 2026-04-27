@@ -36,45 +36,6 @@ export function createQueueControls(
   statusBar.appendChild(shortcutHint);
   statusBar.appendChild(startPauseBtn);
 
-  // ── Concurrency section ───────────────────────────────────────────────────
-
-  const concurrencySection = document.createElement('div');
-  concurrencySection.className = 'queue-controls__concurrency';
-
-  // Radio: one-at-a-time vs parallel
-  const oneAtATimeLabel = document.createElement('label');
-  oneAtATimeLabel.className = 'queue-controls__radio-label';
-  const oneAtATimeRadio = document.createElement('input');
-  oneAtATimeRadio.type = 'radio';
-  oneAtATimeRadio.name = 'concurrency-mode';
-  oneAtATimeRadio.value = 'one';
-  oneAtATimeRadio.className = 'queue-controls__radio';
-  oneAtATimeLabel.appendChild(oneAtATimeRadio);
-  oneAtATimeLabel.append(' One at a time');
-
-  const parallelLabel = document.createElement('label');
-  parallelLabel.className = 'queue-controls__radio-label';
-  const parallelRadio = document.createElement('input');
-  parallelRadio.type = 'radio';
-  parallelRadio.name = 'concurrency-mode';
-  parallelRadio.value = 'parallel';
-  parallelRadio.className = 'queue-controls__radio';
-  parallelLabel.appendChild(parallelRadio);
-  parallelLabel.append(' Parallel (');
-
-  const parallelCount = document.createElement('input');
-  parallelCount.type = 'number';
-  parallelCount.min = '2';
-  parallelCount.max = '8';
-  parallelCount.className = 'queue-controls__concurrency-input';
-  parallelCount.setAttribute('aria-label', 'Parallel concurrency count');
-
-  parallelLabel.appendChild(parallelCount);
-  parallelLabel.append(')');
-
-  concurrencySection.appendChild(oneAtATimeLabel);
-  concurrencySection.appendChild(parallelLabel);
-
   // ── Action buttons ────────────────────────────────────────────────────────
 
   const actionsBar = document.createElement('div');
@@ -115,7 +76,6 @@ export function createQueueControls(
   actionsBar.appendChild(downloadZipBtn);
 
   panel.appendChild(statusBar);
-  panel.appendChild(concurrencySection);
   panel.appendChild(actionsBar);
 
   // ── State sync ────────────────────────────────────────────────────────────
@@ -125,7 +85,6 @@ export function createQueueControls(
   function syncUI(): void {
     const pState = processor.getState();
     const { items } = store.getState();
-    const settings = store.getQueueSettings();
 
     // Only show controls once the queue has more than 1 item. Once shown, stays visible.
     if (items.length > 1) hasBeenShown = true;
@@ -140,13 +99,6 @@ export function createQueueControls(
     startPauseBtn.textContent = pState.running ? 'Pause' : 'Start';
     startPauseBtn.setAttribute('aria-label', pState.running ? 'Pause queue' : 'Start queue');
     startPauseBtn.className = `queue-controls__start-pause${pState.running ? ' queue-controls__start-pause--running' : ''}`;
-
-    // Concurrency radios
-    const isOne = settings.concurrency === 1;
-    oneAtATimeRadio.checked = isOne;
-    parallelRadio.checked = !isOne;
-    parallelCount.value = String(isOne ? 2 : settings.concurrency);
-    parallelCount.disabled = isOne;
 
     // Retry-all button: only visible+enabled when there are errored/cancelled items
     const erroredCount = items.filter(i => i.status === 'error' || i.status === 'cancelled').length;
@@ -183,43 +135,8 @@ export function createQueueControls(
     }
   });
 
-  oneAtATimeRadio.addEventListener('change', () => {
-    if (oneAtATimeRadio.checked) {
-      store.setQueueSettings({ concurrency: 1 });
-      syncUI();
-    }
-  });
-
-  parallelRadio.addEventListener('change', () => {
-    if (parallelRadio.checked) {
-      const n = Math.min(8, Math.max(2, Number(parallelCount.value) || 2));
-      store.setQueueSettings({ concurrency: n });
-      syncUI();
-    }
-  });
-
-  parallelCount.addEventListener('change', () => {
-    if (parallelRadio.checked) {
-      const n = Math.min(8, Math.max(2, Number(parallelCount.value) || 2));
-      store.setQueueSettings({ concurrency: n });
-      syncUI();
-    }
-  });
-
   convertAllBtn.addEventListener('click', () => {
-    // In manual mode the processor is paused; iterate waiting items and run
-    // them individually so the queue doesn't auto-pickup later additions.
-    // In auto mode this is a no-op (processor is already running and waiting
-    // items are already being picked up).
-    const { items } = store.getState();
-    const { mode } = store.getQueueSettings();
-    if (mode === 'manual') {
-      for (const it of items) {
-        if (it.status === 'waiting') processor.runItem(it.id);
-      }
-    } else {
-      processor.start();
-    }
+    processor.start();
   });
 
   reconvertAllBtn.addEventListener('click', () => {
