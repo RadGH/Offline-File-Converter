@@ -178,7 +178,7 @@ body {
   text-transform: uppercase;
   color: var(--text-muted);
   padding: 0.75rem 1rem 0;
-  margin: 0;
+  margin: 0 0 0.6rem;
 }
 
 /* ── Drop zone ─────────────────────────────────────────────────────────── */
@@ -212,9 +212,12 @@ body {
 }
 
 .drop-zone__icon {
-  font-size: 2.2rem;
   line-height: 1;
   margin-bottom: 0.15rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .drop-zone__text {
