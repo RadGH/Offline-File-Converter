@@ -89,7 +89,20 @@ const advBtn = document.createElement('button');
 advBtn.type = 'button';
 advBtn.className = 'rd-btn rd-btn--secondary';
 advBtn.textContent = 'Advanced…';
-advBtn.addEventListener('click', () => advancedShell.openDialog());
+advBtn.addEventListener('click', () => {
+  if (!store.getState().items.some(i => i.isSource)) {
+    toast.info('Upload a photo first to use Advanced settings.');
+    return;
+  }
+  advancedShell.openDialog();
+});
+function syncAdvBtnEnabled(): void {
+  const hasSource = store.getState().items.some(i => i.isSource);
+  advBtn.disabled = !hasSource;
+  advBtn.title = hasSource ? '' : 'Upload a photo first to enable Advanced settings';
+}
+syncAdvBtnEnabled();
+store.subscribe(syncAdvBtnEnabled);
 header.querySelector('.rd-header__right')?.appendChild(advBtn);
 header.querySelector('.rd-header__right')?.appendChild(createThemeToggle());
 

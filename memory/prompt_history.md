@@ -385,3 +385,7 @@ On desktop make the Advanced Settings be full screen (actually, always full scre
 
 Change .queue-item--source remove border instead leave it assigned to .queue-group--selected
 
+## 2026-04-28 20:47
+
+I see new column layout for advanced settings but it is still not full screen. It has .rd-modal { max-w-dtih: 90dvh } for example and is not max height either. Also, disable the advanced button unless you until you select a photo to manipulate, and if clicked instruct "Upload a photo first" or something.
+
