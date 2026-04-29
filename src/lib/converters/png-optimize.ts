@@ -19,63 +19,65 @@
  * This module is lazy-loaded by the dispatcher — never import it at the top level.
  */
 
+export interface PngOptimizeOptions {
+  /** auto = pick smaller of lossless/quantized; on = always quantize; off = always lossless */
+  paletteQuantize?: 'auto' | 'on' | 'off';
+  /** 2..256 palette colors when paletteQuantize='on' or used in 'auto' candidate */
+  paletteSize?: number;
+}
+
 /**
  * Optimize a PNG blob using UPNG.js.
- * The smallest result always wins — original is returned if UPNG can't improve it.
+ * The smallest result always wins for 'auto' mode — original is returned
+ * if UPNG can't improve it.
  */
 export async function optimizePng(
   pngBlob: Blob,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  options?: PngOptimizeOptions
 ): Promise<Blob> {
+  const mode = options?.paletteQuantize ?? 'auto';
+  const paletteSize = Math.max(2, Math.min(256, options?.paletteSize ?? 64));
+
   onProgress?.(10);
-
-  // Dynamic import — never pulled into the main bundle
   const UPNG = (await import('upng-js')).default;
-
   const arrayBuffer = await pngBlob.arrayBuffer();
   onProgress?.(30);
 
   const decoded = UPNG.decode(arrayBuffer);
   onProgress?.(50);
-
-  // RGBA8 frames (UPNG.toRGBA8 returns one ArrayBuffer per frame)
   const frames = UPNG.toRGBA8(decoded);
 
-  // Candidate 1: lossless auto (cnum=0).
-  // UPNG picks truecolor, greyscale, or palette as appropriate.
-  // Strips the alpha channel when all pixels are fully opaque.
-  const lossless = UPNG.encode(frames, decoded.width, decoded.height, 0);
-  onProgress?.(70);
-
-  // Candidate 2: 64-color palette quantization.
-  // Lossy — wins for photos where lossless truecolor can't compress.
-  const quantized = UPNG.encode(frames, decoded.width, decoded.height, 64);
-  onProgress?.(90);
-
-  // Microtask yield so the main thread can breathe
-  await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-  // Pick the smallest result that beats the original
-  const original = pngBlob.size;
-  let bestBuf: ArrayBuffer | null = null;
-
-  for (const buf of [lossless, quantized]) {
-    if (buf.byteLength < original) {
-      if (bestBuf === null || buf.byteLength < bestBuf.byteLength) {
-        bestBuf = buf;
-      }
-    }
+  if (mode === 'on') {
+    const quantized = UPNG.encode(frames, decoded.width, decoded.height, paletteSize);
+    onProgress?.(100);
+    return new Blob([quantized], { type: 'image/png' });
   }
 
-  onProgress?.(100);
-
-  if (bestBuf === null) {
-    console.debug(
-      '[png-optimize] Neither candidate beat the original; returning original.',
-      { original, lossless: lossless.byteLength, quantized: quantized.byteLength }
-    );
+  if (mode === 'off') {
+    const lossless = UPNG.encode(frames, decoded.width, decoded.height, 0);
+    onProgress?.(100);
+    if (lossless.byteLength < pngBlob.size) {
+      return new Blob([lossless], { type: 'image/png' });
+    }
     return pngBlob;
   }
 
+  // auto: try both, return smallest that beats original
+  const lossless = UPNG.encode(frames, decoded.width, decoded.height, 0);
+  onProgress?.(70);
+  const quantized = UPNG.encode(frames, decoded.width, decoded.height, paletteSize);
+  onProgress?.(90);
+  await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+  const original = pngBlob.size;
+  let bestBuf: ArrayBuffer | null = null;
+  for (const buf of [lossless, quantized]) {
+    if (buf.byteLength < original) {
+      if (bestBuf === null || buf.byteLength < bestBuf.byteLength) bestBuf = buf;
+    }
+  }
+  onProgress?.(100);
+  if (bestBuf === null) return pngBlob;
   return new Blob([bestBuf], { type: 'image/png' });
 }

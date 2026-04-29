@@ -1,6 +1,10 @@
 /**
- * AVIF encoder via @jsquash/avif (WASM-based).
- * Lazy-loaded by the dispatcher.
+ * Advanced WebP encoder via @jsquash/webp.
+ *
+ * Used only when settings.webp is set (i.e. the user has loaded the advanced
+ * pack and configured WebP-specific options). The simple/canvas WebP path
+ * remains for users who haven't loaded advanced features — it stays fast
+ * and small.
  */
 
 import type { ConversionInput, ConversionResult } from './types';
@@ -14,12 +18,13 @@ function buildOutName(originalName: string, ext: string): string {
   return `${base}.${ext}`;
 }
 
-export async function convertToAvif(
+export async function convertToWebpAdvanced(
   input: ConversionInput,
   onProgress?: (pct: number) => void
 ): Promise<ConversionResult> {
   const { file, settings, originalDimensions } = input;
-  const adv = settings.avif;
+  const adv = settings.webp;
+  if (!adv) throw new Error('webp-advanced called without settings.webp');
 
   onProgress?.(10);
 
@@ -40,29 +45,22 @@ export async function convertToAvif(
   });
 
   const { imageData } = await decodeProcessedImageData(file, outWidth, outHeight, settings);
-
   onProgress?.(60);
 
-  const { encode } = await import('@jsquash/avif');
-  const opts: { quality: number; speed?: number; lossless?: boolean; bitDepth?: 8 } = {
-    quality: adv?.lossless ? 100 : settings.quality,
-    bitDepth: 8,
-  };
-  if (adv) {
-    opts.speed = Math.max(0, Math.min(10, adv.speed));
-    opts.lossless = adv.lossless;
-  }
-  const arrayBuffer = await encode(imageData, opts);
+  const { encode } = await import('@jsquash/webp');
+  const buf = await encode(imageData, {
+    quality: settings.quality,
+    lossless: adv.lossless ? 1 : 0,
+    alpha_quality: adv.alphaQuality,
+    method: Math.max(0, Math.min(6, adv.method)),
+    near_lossless: Math.max(0, Math.min(100, adv.nearLossless)),
+  });
 
-  const blob = new Blob([arrayBuffer], { type: 'image/avif' });
+  const blob = new Blob([buf], { type: 'image/webp' });
   onProgress?.(100);
 
   return {
-    blob,
-    outName: buildOutName(file.name, extForOutput('avif')),
-    outSize: blob.size,
-    outWidth,
-    outHeight,
-    outFormat: 'avif',
+    blob, outName: buildOutName(file.name, extForOutput('webp')),
+    outSize: blob.size, outWidth, outHeight, outFormat: 'webp',
   };
 }

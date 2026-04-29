@@ -104,34 +104,34 @@ export async function convert(
   const { format } = settings;
 
   switch (format) {
-    case 'jpeg':
-    case 'png':
-    case 'webp': {
-      // Canvas API handles these natively in all modern browsers.
-      const result = await convertViaCanvas(
-        { file, settings, originalDimensions },
-        onProgress,
-      );
-
-      // PNG is always run through UPNG optimizer — no toggle.
-      // UPNG picks the optimal color type (palette/truecolor/grayscale)
-      // and strips the alpha channel when all pixels are fully opaque.
-      // The smaller of the two results is always returned.
-      if (format === 'png') {
-        const { optimizePng } = await import('./png-optimize');
-        const optimizedBlob = await optimizePng(result.blob, (pct) => {
-          // Compress the progress range into 80–100 so it doesn't look like it
-          // jumped backwards after the canvas encoder reported 100.
-          onProgress?.(80 + Math.round(pct * 0.2));
-        });
-        return {
-          ...result,
-          blob: optimizedBlob,
-          outSize: optimizedBlob.size,
-        };
+    case 'jpeg': {
+      // Advanced JPEG path (progressive + chroma subsampling) only when user
+      // has configured settings.jpeg via the advanced panel.
+      if (settings.jpeg) {
+        const { convertToJpegAdvanced } = await import('./jpeg-advanced');
+        return convertToJpegAdvanced({ file, settings, originalDimensions }, onProgress);
       }
-
-      return result;
+      return convertViaCanvas({ file, settings, originalDimensions }, onProgress);
+    }
+    case 'webp': {
+      if (settings.webp) {
+        const { convertToWebpAdvanced } = await import('./webp-advanced');
+        return convertToWebpAdvanced({ file, settings, originalDimensions }, onProgress);
+      }
+      return convertViaCanvas({ file, settings, originalDimensions }, onProgress);
+    }
+    case 'png': {
+      const result = await convertViaCanvas({ file, settings, originalDimensions }, onProgress);
+      const { optimizePng } = await import('./png-optimize');
+      const optimizedBlob = await optimizePng(
+        result.blob,
+        (pct) => onProgress?.(80 + Math.round(pct * 0.2)),
+        settings.png ? {
+          paletteQuantize: settings.png.paletteQuantize,
+          paletteSize: settings.png.paletteSize,
+        } : undefined,
+      );
+      return { ...result, blob: optimizedBlob, outSize: optimizedBlob.size };
     }
 
     case 'avif': {

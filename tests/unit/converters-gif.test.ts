@@ -2,56 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConversionInput } from '@/lib/converters/types';
 
 // ---------------------------------------------------------------------------
-// Mock gif.js — dynamic import inside gif.ts
+// Mock gifenc — module is dynamically imported inside gif.ts
 // ---------------------------------------------------------------------------
 
-type GifEventHandler = (arg?: unknown) => void;
+const mockBytes = new Uint8Array(256);
+mockBytes.fill(0xab);
 
-interface MockGifEncoder {
-  addFrame: ReturnType<typeof vi.fn>;
-  on: ReturnType<typeof vi.fn>;
-  render: ReturnType<typeof vi.fn>;
-  _handlers: Record<string, GifEventHandler[]>;
-}
-
-let mockGifInstance: MockGifEncoder;
-
-// Factory that creates a mock GIF instance and auto-fires 'finished' on render()
-function makeMockGif(): MockGifEncoder {
-  const instance: MockGifEncoder = {
-    addFrame: vi.fn(),
-    render: vi.fn(),
-    on: vi.fn(),
-    _handlers: {},
-  };
-
-  // Capture event listeners
-  instance.on.mockImplementation((event: string, fn: GifEventHandler) => {
-    instance._handlers[event] = instance._handlers[event] ?? [];
-    instance._handlers[event].push(fn);
-    return instance;
-  });
-
-  // When render() is called, fire 'progress' then 'finished'
-  instance.render.mockImplementation(() => {
-    const fakeBlob = new Blob([new Uint8Array(256)], { type: 'image/gif' });
-    // Fire progress at 0.5 then finished
-    (instance._handlers['progress'] ?? []).forEach(fn => fn(0.5));
-    (instance._handlers['finished'] ?? []).forEach(fn => fn(fakeBlob));
-  });
-
-  return instance;
-}
-
-// Mock constructor
-const MockGIFClass = vi.fn().mockImplementation(() => {
-  mockGifInstance = makeMockGif();
-  return mockGifInstance;
+const writeFrame = vi.fn();
+const finish = vi.fn();
+const bytes = vi.fn().mockReturnValue(mockBytes);
+const GIFEncoder = vi.fn().mockReturnValue({ writeFrame, finish, bytes, bytesView: bytes });
+const quantize = vi.fn().mockImplementation((_data: Uint8Array, count: number) => {
+  // Return a fake palette of the requested size with at least one transparent slot for rgba4444.
+  const palette: number[][] = [];
+  for (let i = 0; i < count; i++) palette.push([i, i, i, i === 0 ? 0 : 255]);
+  return palette;
 });
+const applyPalette = vi.fn().mockImplementation((data: Uint8Array) => new Uint8Array(data.length / 4));
 
-vi.mock('gif.js', () => ({ default: MockGIFClass }));
+vi.mock('gifenc', () => ({ quantize, applyPalette, GIFEncoder, default: GIFEncoder }));
 
-// Stub ImageData (not available in jsdom)
+// Stub ImageData (jsdom doesn't have it)
 class MockImageData {
   readonly data: Uint8ClampedArray;
   readonly width: number;
@@ -71,20 +42,28 @@ class MockImageData {
 vi.stubGlobal('ImageData', MockImageData);
 
 // Mock createImageBitmap
-const mockBitmap: ImageBitmap = { width: 64, height: 64, close: vi.fn() };
+const mockBitmap: ImageBitmap = { width: 64, height: 64, close: vi.fn() } as unknown as ImageBitmap;
 vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(mockBitmap));
 
-// Mock OffscreenCanvas
+// Mock OffscreenCanvas with full surface
 class MockOffscreenCanvas {
   width: number;
   height: number;
+  imageSmoothingEnabled = true;
+  imageSmoothingQuality: 'low' | 'medium' | 'high' = 'high';
   constructor(w: number, h: number) { this.width = w; this.height = h; }
-  getContext(_type: string) {
+  getContext(_type: string, _opts?: unknown) {
+    const self = this;
     return {
       drawImage: vi.fn(),
-      getImageData: vi.fn().mockReturnValue(
-        new MockImageData(new Uint8ClampedArray(64 * 64 * 4), 64, 64)
-      ),
+      clearRect: vi.fn(),
+      get imageSmoothingEnabled() { return self.imageSmoothingEnabled; },
+      set imageSmoothingEnabled(v: boolean) { self.imageSmoothingEnabled = v; },
+      get imageSmoothingQuality() { return self.imageSmoothingQuality; },
+      set imageSmoothingQuality(v: 'low' | 'medium' | 'high') { self.imageSmoothingQuality = v; },
+      getImageData: (_x: number, _y: number, w: number, h: number) =>
+        new MockImageData(new Uint8ClampedArray(w * h * 4), w, h),
+      putImageData: vi.fn(),
     };
   }
 }
@@ -115,23 +94,19 @@ function makeInput(overrides: Partial<ConversionInput['settings']> = {}): Conver
   };
 }
 
-describe('convertToGif', () => {
+describe('convertToGif (gifenc backend)', () => {
   beforeEach(() => {
-    MockGIFClass.mockClear();
-    (mockBitmap.close as ReturnType<typeof vi.fn>).mockClear();
+    GIFEncoder.mockClear();
+    writeFrame.mockClear();
+    finish.mockClear();
+    quantize.mockClear();
+    applyPalette.mockClear();
   });
 
-  it('calls encoder.render()', async () => {
+  it('writes a single frame and finishes', async () => {
     await convertToGif(makeInput());
-    expect(mockGifInstance.render).toHaveBeenCalledOnce();
-  });
-
-  it('calls addFrame with an ImageData object', async () => {
-    await convertToGif(makeInput());
-    expect(mockGifInstance.addFrame).toHaveBeenCalledOnce();
-    const [frame] = mockGifInstance.addFrame.mock.calls[0];
-    // MockImageData is stubbed as the global ImageData in this test context
-    expect(frame).toBeInstanceOf(MockImageData);
+    expect(writeFrame).toHaveBeenCalledOnce();
+    expect(finish).toHaveBeenCalledOnce();
   });
 
   it('returns a blob with MIME image/gif', async () => {
@@ -149,34 +124,41 @@ describe('convertToGif', () => {
     expect(result.outFormat).toBe('gif');
   });
 
-  it('maps quality 80 to low gifQuality (higher slider = better quality = lower gif.js value)', async () => {
-    await convertToGif(makeInput({ quality: 80 }));
-    const [opts] = MockGIFClass.mock.calls[0];
-    // quality=80 → gifQuality = max(1, round(30 - (80/100)*29)) = max(1, round(7.2)) = 7
-    expect(opts.quality).toBe(7);
+  it('passes the configured palette size to quantize', async () => {
+    await convertToGif(makeInput({ gif: { transparency: 'auto', paletteSize: 64, dither: 'none' } }));
+    const [, count] = quantize.mock.calls[0];
+    expect(count).toBe(64);
   });
 
-  it('maps quality 1 to gifQuality 30 (worst quality = fastest)', async () => {
-    await convertToGif(makeInput({ quality: 1 }));
-    const [opts] = MockGIFClass.mock.calls[0];
-    expect(opts.quality).toBe(30);
+  it('uses rgba4444 format when transparency is auto and source has alpha', async () => {
+    await convertToGif(makeInput({ gif: { transparency: 'auto', paletteSize: 256, dither: 'none' } }));
+    // Mock getImageData returns all-zero data → all alpha=0 → source has alpha → rgba4444
+    const [, , opts] = quantize.mock.calls[0];
+    expect(opts?.format).toBe('rgba4444');
   });
 
-  it('maps quality 100 to gifQuality 1 (best quality)', async () => {
-    await convertToGif(makeInput({ quality: 100 }));
-    const [opts] = MockGIFClass.mock.calls[0];
-    expect(opts.quality).toBe(1);
+  it('uses rgb444 format when transparency is off', async () => {
+    await convertToGif(makeInput({ gif: { transparency: 'off', paletteSize: 256, dither: 'none' } }));
+    const [, , opts] = quantize.mock.calls[0];
+    expect(opts?.format).toBe('rgb444');
   });
 
-  it('initial onProgress fires at 10', async () => {
+  it('writeFrame includes transparent flag when transparency is enabled', async () => {
+    await convertToGif(makeInput({ gif: { transparency: 'auto', paletteSize: 256, dither: 'none' } }));
+    const [, , , opts] = writeFrame.mock.calls[0];
+    expect(opts?.transparent).toBe(true);
+  });
+
+  it('writeFrame transparent=false when transparency=off', async () => {
+    await convertToGif(makeInput({ gif: { transparency: 'off', paletteSize: 256, dither: 'none' } }));
+    const [, , , opts] = writeFrame.mock.calls[0];
+    expect(opts?.transparent).toBe(false);
+  });
+
+  it('progress callback fires 10 first and 100 last', async () => {
     const calls: number[] = [];
     await convertToGif(makeInput(), (pct) => calls.push(pct));
     expect(calls[0]).toBe(10);
-  });
-
-  it('final onProgress fires at 100', async () => {
-    const calls: number[] = [];
-    await convertToGif(makeInput(), (pct) => calls.push(pct));
     expect(calls[calls.length - 1]).toBe(100);
   });
 

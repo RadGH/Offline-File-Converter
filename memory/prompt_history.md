@@ -317,3 +317,37 @@ Let’s remove the queue/manual modes and just let it always be auto. Remove the
 
 Remove the emoji, replace with svg from font awesome located in ../assets or ../references. Add bottom margin to “add images” text because that text is too close to the drop area dotted border
 
+## 2026-04-28 17:19
+
+This webp animation converted to a single frame with a black background.
+
+Can Gif be given the option for transparency checkbox with auto detect, can we have postertuize slider with preview maybe other simple features like palette adjust if it fits the existing ui, all optional with useful defaults and auto detection. Same for webp output. Any available editing features that would be useful for specific formats should have simple field to adjust the output. Test to ensure all optional actually work and aren’t just bugs/unfinished. Any questions?
+
+## 2026-04-28 17:35
+
+1- Prioritize whatever works best to you. I just need one update to be deployed when you’re done and I’ll review. No need for milestones, but if it helps you keep track, you can use them. 
+
+2. Actually can we build two versions that are mapped together just a different layout, or a button to toggle layouts, just for temporary usage. I would like to see:
+a- beneath the standard filters an “advanced” toggle that expands with more advanced features we’re adding, and maybe some existing ones if considered advanced. We can reorganize if needed and should evaluate UX
+b- a seperate menu modeled after the settings menu. I’d like to see both together to compare.
+
+3. Can we make these advanced settings disabled unless you click a button to download prerequisites and have a progress bar and delete cache button. That way the page is still incredibly fast for simple conversion and add an option to toggle the preview on and off, with before/after slider as just one of the views.
+
+4. Encoder and design filters, the most useful/standard/expected. If more downloads are needed, use the cached download system. Posturize with connection to the image color palette would be very useful. The palette should let you overwrite each color and references the original non edited image as reference, which would need to temporarily disable other filters so you can use a color picker in the ui. 
+
+Any follow ups?
+
+## 2026-04-28 17:47
+
+1- Will the files in memory be cached by browsers? If yes, then just go with in memory solution assuming it is more reasonable approach. I just don’t want the website to loads slowly for features you don’t use.
+
+2- Yes that describes it. I imagine a list of color like [red] -> [green] [x]. You can change green but not red, red is the reference photo. Settings should be stored in the browser based on the image hash so your color preferences still work if you open the same image, with a revert to default/clear button. Improve that idea if you can.
+
+3. Yes persistence is the word I was looking for in #2 focus on persistence but keep it light weight and fast. No extensions that take more than 10 seconds to process, that should be the extreme case.
+
+4. Yes use smart auto tools like that when reasonable. Use a UX agent to brainstorm.
+
+5. Your list looks good, you pick.
+
+No more questions, go!
+

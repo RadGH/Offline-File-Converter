@@ -28,13 +28,29 @@ let toBlobError: Error | null = null;
 class MockOffscreenCanvas {
   width: number;
   height: number;
+  imageSmoothingEnabled = true;
+  imageSmoothingQuality: 'low' | 'medium' | 'high' = 'high';
   constructor(w: number, h: number) {
     this.width = w;
     this.height = h;
   }
-  getContext(_type: string) {
+  getContext(_type: string, _opts?: unknown) {
+    const self = this;
     return {
       drawImage: vi.fn(),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      fillStyle: '#000',
+      get imageSmoothingEnabled() { return self.imageSmoothingEnabled; },
+      set imageSmoothingEnabled(v: boolean) { self.imageSmoothingEnabled = v; },
+      get imageSmoothingQuality() { return self.imageSmoothingQuality; },
+      set imageSmoothingQuality(v: 'low' | 'medium' | 'high') { self.imageSmoothingQuality = v; },
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+        width: w,
+        height: h,
+      }),
+      putImageData: vi.fn(),
     };
   }
   convertToBlob({ type, quality }: { type: string; quality: number }): Promise<Blob> {

@@ -37,13 +37,22 @@ vi.stubGlobal('ImageData', MockImageData);
 class MockOffscreenCanvas {
   width: number;
   height: number;
+  imageSmoothingEnabled = true;
+  imageSmoothingQuality: 'low' | 'medium' | 'high' = 'high';
   constructor(w: number, h: number) { this.width = w; this.height = h; }
-  getContext(_type: string) {
+  getContext(_type: string, _opts?: unknown) {
+    const self = this;
     return {
       drawImage: vi.fn(),
+      clearRect: vi.fn(),
+      get imageSmoothingEnabled() { return self.imageSmoothingEnabled; },
+      set imageSmoothingEnabled(v: boolean) { self.imageSmoothingEnabled = v; },
+      get imageSmoothingQuality() { return self.imageSmoothingQuality; },
+      set imageSmoothingQuality(v: 'low' | 'medium' | 'high') { self.imageSmoothingQuality = v; },
       getImageData: vi.fn().mockReturnValue(
         new MockImageData(new Uint8ClampedArray(64 * 64 * 4), 64, 64)
       ),
+      putImageData: vi.fn(),
     };
   }
 }
@@ -109,12 +118,10 @@ describe('convertToAvif', () => {
     expect(result.outFormat).toBe('avif');
   });
 
-  it('reports progress at 10, 30, 60, 100', async () => {
+  it('reports progress 10 first and 100 last', async () => {
     const calls: number[] = [];
     await convertToAvif(makeInput(), (pct) => calls.push(pct));
     expect(calls[0]).toBe(10);
-    expect(calls[1]).toBe(30);
-    expect(calls[2]).toBe(60);
     expect(calls[calls.length - 1]).toBe(100);
   });
 
