@@ -15,11 +15,11 @@ describe('createQueueStore', () => {
   it('addFiles creates items in waiting status', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg'), makeFile('b.png', 'image/png')]);
-    const { items } = store.getState();
-    expect(items).toHaveLength(2);
-    expect(items[0].status).toBe('waiting');
-    expect(items[1].status).toBe('waiting');
-    expect(items[0].progress).toBe(0);
+    const convs = store.getState().items.filter(i => !i.isSource);
+    expect(convs).toHaveLength(2);
+    expect(convs[0].status).toBe('waiting');
+    expect(convs[1].status).toBe('waiting');
+    expect(convs[0].progress).toBe(0);
   });
 
   it('addFiles rejects non-image files', () => {
@@ -28,48 +28,52 @@ describe('createQueueStore', () => {
       makeFile('doc.pdf', 'application/pdf'),
       makeFile('img.jpg', 'image/jpeg'),
     ]);
-    expect(store.getState().items).toHaveLength(1);
-    expect(store.getState().items[0].file.name).toBe('img.jpg');
+    const sources = store.getState().items.filter(i => i.isSource);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].file.name).toBe('img.jpg');
   });
 
   it('addFiles generates unique IDs', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
     const ids = store.getState().items.map(i => i.id);
-    expect(new Set(ids).size).toBe(2);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('addFiles uses globalDefaults for settings', () => {
     const store = createQueueStore();
     store.setGlobalDefaults({ format: 'webp', quality: 70 });
     store.addFiles([makeFile('a.jpg')]);
-    const { items } = store.getState();
-    expect(items[0].settings.format).toBe('webp');
-    expect(items[0].settings.quality).toBe(70);
+    const conv = store.getState().items.find(i => !i.isSource)!;
+    expect(conv.settings.format).toBe('webp');
+    expect(conv.settings.quality).toBe(70);
   });
 
-  it('removeFile removes the correct item', () => {
+  it('removeFile of a source removes its conversion children too', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
-    const id = store.getState().items[0].id;
-    store.removeFile(id);
-    const { items } = store.getState();
-    expect(items).toHaveLength(1);
-    expect(items[0].file.name).toBe('b.jpg');
+    const sources = store.getState().items.filter(i => i.isSource);
+    store.removeFile(sources[0].id);
+    const remaining = store.getState().items;
+    expect(remaining.find(i => i.file.name === 'a.jpg')).toBeUndefined();
+    expect(remaining.find(i => i.file.name === 'b.jpg')).toBeDefined();
   });
 
-  it('clearCompleted only removes done items', () => {
+  it('clearCompleted only removes done conversion items (sources persist)', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg'), makeFile('c.jpg')]);
-    const [a, _b, c] = store.getState().items;
-    store.setStatus(a.id, 'done');
-    store.setStatus(c.id, 'error');
+    const convs = store.getState().items.filter(i => !i.isSource);
+    store.setStatus(convs[0].id, 'done');
+    store.setStatus(convs[2].id, 'error');
     store.clearCompleted();
-    const { items } = store.getState();
-    expect(items).toHaveLength(2);
-    expect(items.find(i => i.file.name === 'a.jpg')).toBeUndefined();
-    expect(items.find(i => i.file.name === 'b.jpg')).toBeDefined();
-    expect(items.find(i => i.file.name === 'c.jpg')).toBeDefined();
+    const remaining = store.getState().items;
+    // 3 sources still present; among conversions: 'a' (done) is removed,
+    // 'b' (waiting) and 'c' (error) remain.
+    const remainingConvs = remaining.filter(i => !i.isSource);
+    expect(remainingConvs.find(i => i.file.name === 'a.jpg')).toBeUndefined();
+    expect(remainingConvs.find(i => i.file.name === 'b.jpg')).toBeDefined();
+    expect(remainingConvs.find(i => i.file.name === 'c.jpg')).toBeDefined();
+    expect(remaining.filter(i => i.isSource)).toHaveLength(3);
   });
 
   it('clearAll removes all items', () => {
@@ -82,9 +86,9 @@ describe('createQueueStore', () => {
   it('updateFileSettings merges settings', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.updateFileSettings(id, { format: 'png', quality: 90 });
-    const item = store.getState().items[0];
+    const item = store.getState().items.find(i => !i.isSource)!;
     expect(item.settings.format).toBe('png');
     expect(item.settings.quality).toBe(90);
     // other settings remain
@@ -94,26 +98,26 @@ describe('createQueueStore', () => {
   it('setStatus updates status', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.setStatus(id, 'processing');
-    expect(store.getState().items[0].status).toBe('processing');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('processing');
   });
 
   it('setProgress updates progress', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.setProgress(id, 50);
-    expect(store.getState().items[0].progress).toBe(50);
+    expect(store.getState().items.find(i => !i.isSource)!.progress).toBe(50);
   });
 
   it('setResult marks item done with result', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     const blob = new Blob(['fake'], { type: 'image/jpeg' });
     store.setResult(id, { blob, outName: 'a.jpg', outSize: 4 });
-    const item = store.getState().items[0];
+    const item = store.getState().items.find(i => !i.isSource)!;
     expect(item.status).toBe('done');
     expect(item.progress).toBe(100);
     expect(item.result?.outName).toBe('a.jpg');
@@ -122,9 +126,9 @@ describe('createQueueStore', () => {
   it('setError marks item errored', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.setError(id, 'Conversion failed');
-    const item = store.getState().items[0];
+    const item = store.getState().items.find(i => !i.isSource)!;
     expect(item.status).toBe('error');
     expect(item.error).toBe('Conversion failed');
   });
@@ -153,10 +157,10 @@ describe('createQueueStore', () => {
   it('setGlobalDefaults updates defaults without affecting existing items', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const originalFormat = store.getState().items[0].settings.format;
+    const originalFormat = store.getState().items.find(i => !i.isSource)!.settings.format;
     store.setGlobalDefaults({ format: 'webp' });
     // existing item unchanged
-    expect(store.getState().items[0].settings.format).toBe(originalFormat);
+    expect(store.getState().items.find(i => !i.isSource)!.settings.format).toBe(originalFormat);
     // new items use new defaults
     store.addFiles([makeFile('b.jpg')]);
     expect(store.getState().items[1].settings.format).toBe('webp');
@@ -171,43 +175,42 @@ describe('createQueueStore', () => {
   it('setOriginalDimensions stores dimensions on the item', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
-    expect(store.getState().items[0].originalDimensions).toBeUndefined();
+    const id = store.getState().items.find(i => !i.isSource)!.id;
+    expect(store.getState().items.find(i => !i.isSource)!.originalDimensions).toBeUndefined();
     store.setOriginalDimensions(id, { width: 1920, height: 1080 });
-    const item = store.getState().items[0];
+    const item = store.getState().items.find(i => !i.isSource)!;
     expect(item.originalDimensions).toEqual({ width: 1920, height: 1080 });
   });
 
   it('setOriginalDimensions does not affect other items', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
-    const [a, b] = store.getState().items;
-    store.setOriginalDimensions(a.id, { width: 800, height: 600 });
-    expect(store.getState().items[0].originalDimensions).toEqual({ width: 800, height: 600 });
-    expect(store.getState().items[1].originalDimensions).toBeUndefined();
-    // b still untouched
-    expect(store.getState().items.find(i => i.id === b.id)?.originalDimensions).toBeUndefined();
+    const convs = store.getState().items.filter(i => !i.isSource);
+    const [convA, convB] = convs;
+    store.setOriginalDimensions(convA.id, { width: 800, height: 600 });
+    expect(store.getState().items.find(i => i.id === convA.id)?.originalDimensions).toEqual({ width: 800, height: 600 });
+    expect(store.getState().items.find(i => i.id === convB.id)?.originalDimensions).toBeUndefined();
   });
 
   it('setOriginalDimensions notifies subscribers', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     const listener = vi.fn();
     store.subscribe(listener);
     store.setOriginalDimensions(id, { width: 640, height: 480 });
     expect(listener).toHaveBeenCalledTimes(1);
     const state = listener.mock.calls[0][0] as ReturnType<typeof store.getState>;
-    expect(state.items[0].originalDimensions).toEqual({ width: 640, height: 480 });
+    expect(state.items.find(i => !i.isSource)!.originalDimensions).toEqual({ width: 640, height: 480 });
   });
 
   it('setOriginalDimensions can be called multiple times (overwrite)', () => {
     const store = createQueueStore();
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.setOriginalDimensions(id, { width: 100, height: 100 });
     store.setOriginalDimensions(id, { width: 200, height: 150 });
-    expect(store.getState().items[0].originalDimensions).toEqual({ width: 200, height: 150 });
+    expect(store.getState().items.find(i => !i.isSource)!.originalDimensions).toEqual({ width: 200, height: 150 });
   });
 });
 
@@ -279,7 +282,7 @@ describe('PerFileSettings.upscale default', () => {
   it('new files default to upscale=false', () => {
     const store = createQueueStore();
     store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
-    expect(store.getState().items[0].settings.upscale).toBe(false);
+    expect(store.getState().items.find(i => !i.isSource)!.settings.upscale).toBe(false);
   });
 
   it('globalDefaults has upscale=false by default', () => {
@@ -291,7 +294,7 @@ describe('PerFileSettings.upscale default', () => {
     const store = createQueueStore();
     store.setGlobalDefaults({ upscale: true });
     store.addFiles([new File([new Uint8Array(10)], 'b.jpg', { type: 'image/jpeg' })]);
-    expect(store.getState().items[0].settings.upscale).toBe(true);
+    expect(store.getState().items.find(i => !i.isSource)!.settings.upscale).toBe(true);
   });
 });
 
@@ -383,24 +386,25 @@ describe('setUpscaledBy', () => {
       new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }),
       new File([new Uint8Array(10)], 'b.jpg', { type: 'image/jpeg' }),
     ]);
-    const id = store.getState().items[0].id;
+    const convs = store.getState().items.filter(i => !i.isSource);
+    const id = convs[0].id;
     store.setUpscaledBy(id, 4);
-    expect(store.getState().items[0].upscaledBy).toBe(4);
-    expect(store.getState().items[1].upscaledBy).toBeUndefined();
+    expect(store.getState().items.find(i => i.id === id)?.upscaledBy).toBe(4);
+    expect(store.getState().items.find(i => i.id === convs[1].id)?.upscaledBy).toBeUndefined();
   });
 
   it('supports factor 2', () => {
     const store = createQueueStore();
     store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     store.setUpscaledBy(id, 2);
-    expect(store.getState().items[0].upscaledBy).toBe(2);
+    expect(store.getState().items.find(i => !i.isSource)!.upscaledBy).toBe(2);
   });
 
   it('notifies subscribers', () => {
     const store = createQueueStore();
     store.addFiles([new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     const listener = vi.fn();
     store.subscribe(listener);
     store.setUpscaledBy(id, 4);

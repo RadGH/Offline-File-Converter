@@ -101,7 +101,45 @@ export async function convert(
   }
 
   // ── Output format routing ───────────────────────────────────────────────────
-  const { format } = settings;
+  let { format } = settings;
+
+  // Resolve 'auto' before dispatching. Probe the file once for alpha + frame count.
+  if (format === 'auto') {
+    const { resolveAutoFormat } = await import('./auto-format');
+    const { decodeAllFrames } = await import('@/lib/advanced/decode-frames');
+    let isAnimated = false;
+    let hasAlpha = false;
+    try {
+      const probe = await decodeAllFrames(file);
+      isAnimated = probe.frames.length > 1;
+      // Sample alpha from the first frame.
+      if (probe.frames.length > 0) {
+        const cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(probe.width, probe.height) : null;
+        if (cv) {
+          const ctx = (cv as unknown as { getContext(t: '2d', o?: { alpha?: boolean }): CanvasRenderingContext2DSettings | null })
+            .getContext('2d', { alpha: true }) as unknown as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+          if (ctx) {
+            ctx.clearRect(0, 0, probe.width, probe.height);
+            ctx.drawImage(probe.frames[0].bitmap, 0, 0);
+            // Sample-check alpha on a 32×32 grid.
+            const stepX = Math.max(1, Math.floor(probe.width / 32));
+            const stepY = Math.max(1, Math.floor(probe.height / 32));
+            const id = ctx.getImageData(0, 0, probe.width, probe.height);
+            outer: for (let y = 0; y < probe.height; y += stepY) {
+              for (let x = 0; x < probe.width; x += stepX) {
+                if (id.data[(y * probe.width + x) * 4 + 3] < 255) { hasAlpha = true; break outer; }
+              }
+            }
+          }
+        }
+        probe.frames.forEach(f => f.bitmap.close?.());
+      }
+    } catch {
+      // probe failure → fall through with isAnimated=false, hasAlpha=false
+    }
+    format = resolveAutoFormat(file, { hasAlpha, isAnimated });
+    settings = { ...settings, format };
+  }
 
   switch (format) {
     case 'jpeg': {
@@ -156,10 +194,11 @@ export async function convert(
       return convertToWebpAnimated({ file, settings, originalDimensions }, onProgress);
     }
 
+    case 'auto':
     default: {
-      // TypeScript exhaustiveness guard
-      const _never: never = format;
-      throw new Error(`Unknown output format: ${String(_never)}`);
+      // 'auto' is resolved earlier; reaching here means a typo or future
+      // format that wasn't wired in. Fall back to canvas with a sane mime.
+      throw new Error(`Unknown output format: ${String(format)}`);
     }
   }
 }

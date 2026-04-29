@@ -42,6 +42,7 @@ export function isSupportedInput(file: File): boolean {
 
 export function mimeForOutput(format: OutputFormat): string {
   switch (format) {
+    case 'auto': return 'image/jpeg'; // never reached at encode time; auto resolves earlier
     case 'jpeg': return 'image/jpeg';
     case 'png':  return 'image/png';
     case 'webp': return 'image/webp';
@@ -54,6 +55,7 @@ export function mimeForOutput(format: OutputFormat): string {
 
 export function extForOutput(format: OutputFormat): string {
   switch (format) {
+    case 'auto': return 'jpg';
     case 'jpeg': return 'jpg';
     case 'png':  return 'png';
     case 'webp': return 'webp';

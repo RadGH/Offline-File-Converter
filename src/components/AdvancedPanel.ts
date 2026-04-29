@@ -472,10 +472,15 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   }
 
   // ── Palette overrides ───────────────────────────────────────────────────
-  function getPreviewItem(): { file: File; hash?: string } | null {
-    const items = store.getState().items;
-    if (items.length === 0) return null;
-    return { file: items[0].file };
+  function getPreviewItem(): { file: File; sourceId: string } | null {
+    const state = store.getState();
+    const id = state.selectedSourceId;
+    const src = id ? state.items.find(i => i.id === id && i.isSource) : null;
+    if (src) return { file: src.file, sourceId: src.id };
+    // Fallback to first source in the list, if any.
+    const firstSource = state.items.find(i => i.isSource);
+    if (firstSource) return { file: firstSource.file, sourceId: firstSource.id };
+    return null;
   }
 
   function renderPaletteOverrides(): void {
@@ -709,8 +714,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   function syncConvertButton(): void {
     if (!isPackLoaded()) return;
     const ui = store.getAdvancedUi();
-    const items = store.getState().items;
-    const hasItem = items.length > 0;
+    const hasItem = getPreviewItem() !== null;
     const cur = settingsSnapshot();
     const last = ui.lastConvertedSnapshot;
     const dirty = last === null || last !== cur;
@@ -761,9 +765,9 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   }
 
   convertBtn.addEventListener('click', async () => {
-    const items = store.getState().items;
-    if (items.length === 0) return;
-    const sourceId = items[0].id;
+    const item = getPreviewItem();
+    if (!item) return;
+    const sourceId = item.sourceId;
     convertBtn.disabled = true;
     convertBtn.textContent = 'Converting…';
     const newId = store.cloneItemWithDefaults(sourceId);
@@ -835,18 +839,17 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     syncConvertButton();
   });
 
-  // On first item load: try restoring persisted overrides.
+  // When the selected source changes, restore that file's persisted overrides.
   let lastRestoredFor = '';
   store.subscribe(async () => {
     if (!isPackLoaded() || !packRef) return;
-    const items = store.getState().items;
-    if (items.length === 0) return;
-    const file = items[0].file;
-    const key = `${file.name}/${file.size}/${file.lastModified}`;
+    const item = getPreviewItem();
+    if (!item) return;
+    const key = `${item.file.name}/${item.file.size}/${item.file.lastModified}`;
     if (key === lastRestoredFor) return;
     lastRestoredFor = key;
     try {
-      const hash = await packRef.imageHash.hashFile(file);
+      const hash = await packRef.imageHash.hashFile(item.file);
       const persisted = packRef.paletteOverrides.readOverrides(hash);
       if (persisted && persisted.length > 0) {
         store.setGlobalDefaults({ paletteOverrides: persisted });

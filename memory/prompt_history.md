@@ -355,3 +355,13 @@ No more questions, go!
 
 Go with the dialog option, remove the temp code. Advanced mode add convert button that gets disabled until you make other changes and each time records the new output in the list. Add to output formats new Gif (Animated) and WebP (Animated) which would have fewer settings than image mode (i’m assuming, keep if it can work with animation). Push when done
 
+## 2026-04-28 19:20
+
+In dark mode after uploading an image the queue card for the upload has a light background. The toast at the bottom right about "n files converted" should just say "file converted" when uploading a single photo, and "n files converted" when uploading multiple or using the queue > 1. 
+
+Major upgrade to the queue: Change the default format to Automatic, which matches the uploaded file and auto detects transparency/animation etc. If changed to JPG, remember that with persistence. In the queue area, display the originally uploaded file similar to the current cards, but without the download/compare/re-convert buttons. Then the actual queue should be attached to the original upload, like an indented/grouped/nested list. Each conversion becomes a row child to the original upload, and can be compared/downloaded/removed but no longer show re-convert. Instead, any changes made should always refer to the source image (I'm not sure if that is the case). Add an indicator for the currently selected image. Then when Advanced menu is opened, use the current selected main image as the source. When an item is selected, display a "Convert" button below the settings menu. 
+
+I converted to an animated gif and it actually worked! However I tried to convert to webp and then ever since hten I can't convert to anything, I just get the error: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: "script-src 'self' https://www.googletagmanager.com".). Build with -sASSERTIONS for more info.
+
+Can we fix that? Do we need to be worried about security? Is it because of gdpr thing (google tag manager)?
+

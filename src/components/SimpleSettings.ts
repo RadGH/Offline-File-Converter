@@ -2,8 +2,9 @@ import type { QueueStore, PerFileSettings, OutputFormat } from '@/lib/queue/stor
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { computePairedDimension } from '@/lib/utils/resize';
 
-interface FormatOption { value: OutputFormat; label: string; group?: 'still' | 'animated' }
+interface FormatOption { value: OutputFormat; label: string; group?: 'auto' | 'still' | 'animated' }
 const FORMAT_OPTIONS: FormatOption[] = [
+  { value: 'auto', label: 'Automatic (match source)', group: 'auto' },
   { value: 'jpeg', label: 'JPEG', group: 'still' },
   { value: 'png',  label: 'PNG',  group: 'still' },
   { value: 'webp', label: 'WebP', group: 'still' },
@@ -40,7 +41,9 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
     const option = document.createElement('option');
     option.value = opt.value;
     option.textContent = opt.label;
-    (opt.group === 'animated' ? animGroup : stillGroup).appendChild(option);
+    if (opt.group === 'auto') formatSelect.appendChild(option);
+    else if (opt.group === 'animated') animGroup.appendChild(option);
+    else stillGroup.appendChild(option);
   });
   formatSelect.append(stillGroup, animGroup);
   formatRow.control.appendChild(formatSelect);
@@ -157,6 +160,38 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   stripLabel.append(' Strip metadata (EXIF)');
   stripRow.control.appendChild(stripLabel);
 
+  // ── Convert button (acts on currently selected source) ───────────────────
+  const convertWrap = document.createElement('div');
+  convertWrap.className = 'simple-convert';
+  const convertBtn = document.createElement('button');
+  convertBtn.type = 'button';
+  convertBtn.className = 'rd-btn rd-btn--primary simple-convert__btn';
+  convertBtn.textContent = 'Convert';
+  const convertHint = document.createElement('p');
+  convertHint.className = 'simple-convert__hint';
+  convertWrap.append(convertBtn, convertHint);
+  convertBtn.addEventListener('click', () => {
+    const id = store.getSelectedSourceId();
+    if (!id) return;
+    store.cloneItemWithDefaults(id);
+  });
+  function syncConvertBtn(): void {
+    const id = store.getSelectedSourceId();
+    const items = store.getState().items;
+    const src = id ? items.find(i => i.id === id && i.isSource) : null;
+    if (!src) {
+      convertBtn.disabled = true;
+      convertHint.textContent = items.some(i => i.isSource)
+        ? 'Select a source image in the queue to convert it.'
+        : 'Add an image to convert.';
+    } else {
+      convertBtn.disabled = false;
+      convertHint.textContent = `Source: ${src.file.name}`;
+    }
+  }
+  syncConvertBtn();
+  store.subscribe(syncConvertBtn);
+
   // ── Assemble ──────────────────────────────────────────────────────────────
   wrapper.appendChild(formatRow.el);
   wrapper.appendChild(qualityRow.el);
@@ -164,6 +199,7 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   wrapper.appendChild(aspectRow.el);
   wrapper.appendChild(orientRow.el);
   wrapper.appendChild(stripRow.el);
+  wrapper.appendChild(convertWrap);
   wrapper.appendChild(resampleRow.el);
 
   // Queue mode is always 'auto' now — ensure stored settings reflect that.

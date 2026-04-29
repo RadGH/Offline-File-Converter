@@ -178,11 +178,11 @@ describe('createQueueProcessor', () => {
 
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
     // Do NOT start the processor — cancel while still waiting
-    const ids = store.getState().items.map(i => i.id);
+    const ids = store.getState().items.filter(i => !i.isSource).map(i => i.id);
 
     processor.cancelItem(ids[0]);
 
-    expect(store.getState().items[0].status).toBe('cancelled');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('cancelled');
     expect(resolvers).toHaveLength(0); // convertFn was never called
   });
 
@@ -192,7 +192,7 @@ describe('createQueueProcessor', () => {
     const processor = createQueueProcessor({ concurrency: 2, store, convertFn });
 
     store.addFiles([makeFile('a.jpg'), makeFile('b.jpg')]);
-    const ids = store.getState().items.map(i => i.id);
+    const ids = store.getState().items.filter(i => !i.isSource).map(i => i.id);
 
     processor.cancelItem(ids[0]);
 
@@ -201,8 +201,9 @@ describe('createQueueProcessor', () => {
 
     // Only b should have been dispatched
     expect(resolvers).toHaveLength(1);
-    expect(store.getState().items[0].status).toBe('cancelled');
-    expect(store.getState().items[1].status).toBe('processing');
+    const convs = store.getState().items.filter(i => !i.isSource);
+    expect(convs.find(i => i.id === ids[0])?.status).toBe('cancelled');
+    expect(convs.find(i => i.id === ids[1])?.status).toBe('processing');
   });
 
   it('cancelItem on processing: item completes but status is cancelled (documented in-flight limitation)', async () => {
@@ -215,7 +216,7 @@ describe('createQueueProcessor', () => {
     await Promise.resolve();
 
     expect(resolvers).toHaveLength(1);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
 
     // Cancel while in-flight
     processor.cancelItem(id);
@@ -226,7 +227,7 @@ describe('createQueueProcessor', () => {
     await Promise.resolve();
 
     // Status should be cancelled, not done
-    expect(store.getState().items[0].status).toBe('cancelled');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('cancelled');
   });
 
   // ── retryItem ───────────────────────────────────────────────────────────────
@@ -240,27 +241,27 @@ describe('createQueueProcessor', () => {
     processor.start();
     await Promise.resolve();
 
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
 
     // Fail the conversion
     resolvers[0].reject(new Error('boom'));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('error');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('error');
 
     // Retry
     processor.retryItem(id);
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('processing');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('processing');
     expect(resolvers).toHaveLength(2);
 
     resolvers[1].resolve(makeResult('a.jpg'));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('done');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('done');
   });
 
   it('retryItem on cancelled → resets to waiting', async () => {
@@ -269,16 +270,16 @@ describe('createQueueProcessor', () => {
     const processor = createQueueProcessor({ concurrency: 1, store, convertFn });
 
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     processor.cancelItem(id);
 
-    expect(store.getState().items[0].status).toBe('cancelled');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('cancelled');
 
     processor.start();
     processor.retryItem(id);
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('processing');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('processing');
   });
 
   it('retryItem on done → no-op (status stays done)', async () => {
@@ -290,17 +291,17 @@ describe('createQueueProcessor', () => {
     processor.start();
     await Promise.resolve();
 
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     resolvers[0].resolve(makeResult('a.jpg'));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('done');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('done');
 
     processor.retryItem(id); // should be no-op
     await Promise.resolve();
 
-    expect(store.getState().items[0].status).toBe('done');
+    expect(store.getState().items.find(i => !i.isSource)!.status).toBe('done');
     // convertFn was not called again
     expect(resolvers).toHaveLength(1);
   });
@@ -317,7 +318,7 @@ describe('createQueueProcessor', () => {
     const processor = createQueueProcessor({ concurrency: 1, store, convertFn });
 
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     processor.start();
     await Promise.resolve();
 
@@ -339,7 +340,7 @@ describe('createQueueProcessor', () => {
     const processor = createQueueProcessor({ concurrency: 1, store, convertFn });
 
     store.addFiles([makeFile('a.jpg')]);
-    const id = store.getState().items[0].id;
+    const id = store.getState().items.find(i => !i.isSource)!.id;
     processor.start();
     await Promise.resolve();
 

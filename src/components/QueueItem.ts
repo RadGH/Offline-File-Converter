@@ -7,6 +7,7 @@ import { settingsDiffer } from '@/lib/utils/settings-differ';
 export { settingsDiffer };
 
 const FORMAT_FACTOR: Record<OutputFormat, number> = {
+  auto: 0.55,
   jpeg: 0.55,
   webp: 0.45,
   avif: 0.25,
@@ -271,7 +272,11 @@ export function createQueueItemEl(
     }
   }
 
-  if (item.status === 'done' && item.result) {
+  // Source rows render no Compare/Download/Reconvert. Conversion children
+  // get Compare + Download. Re-convert is removed; the new Convert button
+  // in the settings card is the single mechanism to add new conversions.
+  const isSource = !!item.isSource;
+  if (!isSource && item.status === 'done' && item.result) {
     compareBtn = document.createElement('button');
     compareBtn.type = 'button';
     compareBtn.className = 'queue-item__compare-btn';
@@ -301,20 +306,6 @@ export function createQueueItemEl(
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
     actions.appendChild(dlBtn);
-
-    // Re-convert button: only shown when item settings differ from globalDefaults
-    if (settingsDiffer(item.settings, store.getGlobalDefaults())) {
-      const reconvertBtn = document.createElement('button');
-      reconvertBtn.type = 'button';
-      reconvertBtn.className = 'queue-item__reconvert-btn';
-      reconvertBtn.setAttribute('aria-label', `Re-convert ${item.file.name} with current settings`);
-      reconvertBtn.textContent = 'Re-convert';
-      reconvertBtn.title = 'Add a new queue entry with current default settings applied.';
-      reconvertBtn.addEventListener('click', () => {
-        store.addFiles([item.file]);
-      });
-      actions.appendChild(reconvertBtn);
-    }
   }
 
   const removeBtn = document.createElement('button');
@@ -330,9 +321,9 @@ export function createQueueItemEl(
 
   el.appendChild(thumb);
   el.appendChild(info);
-  if (savedBubble) el.appendChild(savedBubble);
-  if (upscaledBubble) el.appendChild(upscaledBubble);
-  el.appendChild(badge);
+  if (!isSource && savedBubble) el.appendChild(savedBubble);
+  if (!isSource && upscaledBubble) el.appendChild(upscaledBubble);
+  if (!isSource) el.appendChild(badge);
   el.appendChild(actions);
   el.appendChild(removeBtn);
 

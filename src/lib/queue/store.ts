@@ -19,7 +19,7 @@ function genId(): string {
 
 export type QueueStatus = 'waiting' | 'processing' | 'done' | 'error' | 'cancelled';
 
-export type OutputFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'gif' | 'gif-animated' | 'webp-animated';
+export type OutputFormat = 'auto' | 'jpeg' | 'png' | 'webp' | 'avif' | 'gif' | 'gif-animated' | 'webp-animated';
 
 // ── Advanced settings ─────────────────────────────────────────────────────────
 // All advanced fields are optional. When undefined the converter falls back
@@ -190,6 +190,10 @@ export interface QueueItem {
   /** ms timestamp when AI upscale started, if currently in-flight.
    *  Cleared when upscale finishes or errors. */
   upscaleStartedAt?: number;
+  /** Source items have undefined parentId. Conversion items reference their source. */
+  parentId?: string;
+  /** True for the original-upload row that spawns conversion children. */
+  isSource?: boolean;
 }
 
 // ── Upscale model status ──────────────────────────────────────────────────────
@@ -239,6 +243,9 @@ export interface QueueState {
   modelStatus: UpscaleModelStatus;
   upscaleCapability: UpscaleCapabilityValue;
   advancedUi: AdvancedUiState;
+  /** id of the currently selected source item, or null. Used by the Advanced
+   *  panel for preview and by the simple-settings Convert button. */
+  selectedSourceId: string | null;
 }
 
 export type Listener = (state: QueueState) => void;
@@ -270,10 +277,13 @@ export interface QueueStore {
   getAdvancedUi: () => AdvancedUiState;
   /** Clone an existing item with the current global defaults applied, append to the queue. Returns the new id. */
   cloneItemWithDefaults: (sourceId: string) => string | null;
+  /** Mark the given source item as selected. Pass null to clear selection. */
+  selectSource: (id: string | null) => void;
+  getSelectedSourceId: () => string | null;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
-  format: 'jpeg',
+  format: 'auto',
   quality: 85,
   width: null,
   height: null,
@@ -376,6 +386,7 @@ export function createQueueStore(): QueueStore {
     modelStatus: { kind: 'unknown' },
     upscaleCapability: 'unknown',
     advancedUi: loadPersistedAdvancedUi(),
+    selectedSourceId: null,
   };
 
   const listeners = new Set<Listener>();
@@ -398,20 +409,53 @@ export function createQueueStore(): QueueStore {
     const supported = files.filter(f => isSupportedInput(f));
     if (supported.length === 0) return;
 
-    const newItems: QueueItem[] = supported.map(file => ({
-      id: genId(),
-      file,
-      status: 'waiting',
-      progress: 0,
-      settings: { ...state.globalDefaults },
-    }));
+    // Each upload becomes a SOURCE row (no processing) plus an initial
+    // CONVERSION child that uses the current globalDefaults. The processor
+    // skips items where isSource=true so sources never run through it.
+    const newItems: QueueItem[] = [];
+    let firstSourceId: string | null = state.selectedSourceId;
+    for (const file of supported) {
+      const sourceId = genId();
+      newItems.push({
+        id: sourceId,
+        file,
+        status: 'done', // source rows are never "waiting"; mark done so UI doesn't show progress
+        progress: 100,
+        settings: { ...state.globalDefaults },
+        isSource: true,
+      });
+      // Initial conversion child with current globalDefaults (likely 'auto').
+      newItems.push({
+        id: genId(),
+        file,
+        status: 'waiting',
+        progress: 0,
+        settings: { ...state.globalDefaults },
+        parentId: sourceId,
+      });
+      if (!firstSourceId) firstSourceId = sourceId;
+    }
 
-    state = { ...state, items: [...state.items, ...newItems] };
+    state = {
+      ...state,
+      items: [...state.items, ...newItems],
+      selectedSourceId: firstSourceId,
+    };
     notify();
   }
 
   function removeFile(id: string): void {
-    state = { ...state, items: state.items.filter(item => item.id !== id) };
+    // If id is a SOURCE, drop the source AND all of its conversion children.
+    const target = state.items.find(i => i.id === id);
+    if (target?.isSource) {
+      const filtered = state.items.filter(item => item.id !== id && item.parentId !== id);
+      const nextSelected = state.selectedSourceId === id
+        ? (filtered.find(i => i.isSource)?.id ?? null)
+        : state.selectedSourceId;
+      state = { ...state, items: filtered, selectedSourceId: nextSelected };
+    } else {
+      state = { ...state, items: state.items.filter(item => item.id !== id) };
+    }
     notify();
   }
 
@@ -441,7 +485,11 @@ export function createQueueStore(): QueueStore {
   }
 
   function clearCompleted(): void {
-    state = { ...state, items: state.items.filter(item => item.status !== 'done') };
+    // Drop completed CONVERSIONS only — source rows persist as anchors for
+    // the queue. Then drop any source whose all-children-removed state leaves
+    // it without any conversion children — but that's actually fine, the
+    // source stays as a reference image until the user removes it explicitly.
+    state = { ...state, items: state.items.filter(item => item.isSource || item.status !== 'done') };
     notify();
   }
 
@@ -544,17 +592,30 @@ export function createQueueStore(): QueueStore {
   function cloneItemWithDefaults(sourceId: string): string | null {
     const src = state.items.find(i => i.id === sourceId);
     if (!src) return null;
+    // Always parent the new conversion to the original SOURCE (walking up if a
+    // child id was passed in).
+    const parentId = src.isSource ? src.id : (src.parentId ?? src.id);
+    const parent = state.items.find(i => i.id === parentId) ?? src;
     const newItem: QueueItem = {
       id: genId(),
-      file: src.file,
+      file: parent.file,
       status: 'waiting',
       progress: 0,
       settings: { ...state.globalDefaults },
-      originalDimensions: src.originalDimensions,
+      originalDimensions: parent.originalDimensions,
+      parentId,
     };
     state = { ...state, items: [...state.items, newItem] };
     notify();
     return newItem.id;
+  }
+
+  function selectSource(id: string | null): void {
+    state = { ...state, selectedSourceId: id };
+    notify();
+  }
+  function getSelectedSourceId(): string | null {
+    return state.selectedSourceId;
   }
 
   function setAdvancedUi(patch: Partial<AdvancedUiState>): void {
@@ -603,5 +664,7 @@ export function createQueueStore(): QueueStore {
     setAdvancedUi,
     getAdvancedUi,
     cloneItemWithDefaults,
+    selectSource,
+    getSelectedSourceId,
   };
 }

@@ -51,7 +51,9 @@ store.subscribe(() => {
     prevItemCount > 0
   ) {
     if (errorCount === 0) {
-      toast.info(`All ${doneCount} file${doneCount !== 1 ? 's' : ''} converted.`);
+      toast.info(doneCount === 1 ? 'File converted.' : `${doneCount} files converted.`);
+    } else if (doneCount === 0) {
+      toast.info(errorCount === 1 ? 'Conversion failed.' : `${errorCount} conversions failed.`);
     } else {
       toast.info(`${doneCount} converted, ${errorCount} failed.`);
     }
