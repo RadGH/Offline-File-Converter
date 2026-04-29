@@ -7,10 +7,12 @@ const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
   { value: 'webp', label: 'WebP' },
   { value: 'avif', label: 'AVIF' },
   { value: 'gif',  label: 'GIF' },
+  { value: 'gif-animated',  label: 'GIF (Animated)' },
+  { value: 'webp-animated', label: 'WebP (Animated)' },
 ];
 
 /** Formats where quality is irrelevant (lossless in our pipeline) */
-const LOSSLESS_FORMATS = new Set<OutputFormat>(['png', 'gif']);
+const LOSSLESS_FORMATS = new Set<OutputFormat>(['png', 'gif', 'gif-animated']);
 
 function isLossless(fmt: OutputFormat): boolean {
   return LOSSLESS_FORMATS.has(fmt);

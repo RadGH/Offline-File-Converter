@@ -12,6 +12,8 @@ const FORMAT_FACTOR: Record<OutputFormat, number> = {
   avif: 0.25,
   png: 0.70,
   gif: 1.00,
+  'gif-animated': 1.50,
+  'webp-animated': 0.80,
 };
 
 function estimatedOutputSize(item: QueueItemData): number | null {

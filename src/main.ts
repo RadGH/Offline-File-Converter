@@ -5,7 +5,6 @@ import { createFileQueue } from '@/components/FileQueue';
 import { createQueueControls } from '@/components/QueueControls';
 import { createSimpleSettings } from '@/components/SimpleSettings';
 import { createAdvancedShell } from '@/components/AdvancedShell';
-import { createLayoutToggle } from '@/components/LayoutToggle';
 import { createQueueStore } from '@/lib/queue/store';
 import { createQueueProcessor } from '@/lib/queue/processor';
 import { startDimensionDetection } from '@/lib/queue/detect-dimensions';
@@ -84,9 +83,12 @@ header.innerHTML = `
     <span class="rd-header__badge">100% Local</span>
   </div>
 `;
-header.querySelector('.rd-header__right')?.appendChild(
-  createLayoutToggle(store, () => advancedShell.openDialog())
-);
+const advBtn = document.createElement('button');
+advBtn.type = 'button';
+advBtn.className = 'rd-btn rd-btn--secondary';
+advBtn.textContent = 'Advanced…';
+advBtn.addEventListener('click', () => advancedShell.openDialog());
+header.querySelector('.rd-header__right')?.appendChild(advBtn);
 header.querySelector('.rd-header__right')?.appendChild(createThemeToggle());
 
 // Main grid
@@ -118,9 +120,8 @@ const simpleSettings = createSimpleSettings(store, processor);
 settingsCard.appendChild(settingsCardTitle);
 settingsCard.appendChild(simpleSettings);
 
-// Advanced shell — single instance reparented between inline + dialog.
+// Advanced shell — side-panel dialog.
 const advancedShell = createAdvancedShell(store);
-settingsCard.appendChild(advancedShell.inlineMount);
 
 left.appendChild(dropCard);
 left.appendChild(settingsCard);

@@ -47,6 +47,8 @@ export function mimeForOutput(format: OutputFormat): string {
     case 'webp': return 'image/webp';
     case 'avif': return 'image/avif';
     case 'gif':  return 'image/gif';
+    case 'gif-animated':  return 'image/gif';
+    case 'webp-animated': return 'image/webp';
   }
 }
 
@@ -57,5 +59,7 @@ export function extForOutput(format: OutputFormat): string {
     case 'webp': return 'webp';
     case 'avif': return 'avif';
     case 'gif':  return 'gif';
+    case 'gif-animated':  return 'gif';
+    case 'webp-animated': return 'webp';
   }
 }

@@ -19,7 +19,7 @@ function genId(): string {
 
 export type QueueStatus = 'waiting' | 'processing' | 'done' | 'error' | 'cancelled';
 
-export type OutputFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'gif';
+export type OutputFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'gif' | 'gif-animated' | 'webp-animated';
 
 // ── Advanced settings ─────────────────────────────────────────────────────────
 // All advanced fields are optional. When undefined the converter falls back
@@ -217,18 +217,19 @@ export type AdvancedPackStatus =
   | { kind: 'ready' }
   | { kind: 'error'; reason: string };
 
-export type AdvancedLayout = 'inline' | 'dialog';
-
 export interface AdvancedUiState {
   pack: AdvancedPackStatus;
-  layout: AdvancedLayout;
-  /** Whether the advanced disclosure is expanded (Layout A) or dialog open (Layout B handles its own state). */
-  expanded: boolean;
+  /** Whether the dialog is open. */
+  dialogOpen: boolean;
   previewEnabled: boolean;
   /** While true, the preview shows raw source pixels (no filters) so the eyedropper can sample. */
   eyedropperActive: boolean;
   /** Index of the palette override row whose 'from' color is being picked. -1 = none. */
   eyedropperRow: number;
+  /** JSON-serialized snapshot of the per-file settings at the moment of the last successful Advanced Convert. */
+  lastConvertedSnapshot: string | null;
+  /** Last result produced by the Advanced Convert button — drives the in-dialog result row. */
+  lastResult: { itemId: string; outName: string; outSize: number; thumbDataUrl: string | null } | null;
 }
 
 export interface QueueState {
@@ -267,6 +268,8 @@ export interface QueueStore {
   setUpscaleStartedAt: (id: string, t: number | undefined) => void;
   setAdvancedUi: (patch: Partial<AdvancedUiState>) => void;
   getAdvancedUi: () => AdvancedUiState;
+  /** Clone an existing item with the current global defaults applied, append to the queue. Returns the new id. */
+  cloneItemWithDefaults: (sourceId: string) => string | null;
 }
 
 const DEFAULT_SETTINGS: PerFileSettings = {
@@ -294,11 +297,12 @@ const LS_KEY_ADV_UI = 'converter.advancedUi.v1';
 
 const DEFAULT_ADV_UI: AdvancedUiState = {
   pack: { kind: 'idle' },
-  layout: 'dialog',
-  expanded: false,
+  dialogOpen: false,
   previewEnabled: true,
   eyedropperActive: false,
   eyedropperRow: -1,
+  lastConvertedSnapshot: null,
+  lastResult: null,
 };
 
 function loadPersistedAdvancedUi(): AdvancedUiState {
@@ -308,8 +312,6 @@ function loadPersistedAdvancedUi(): AdvancedUiState {
     const parsed = JSON.parse(raw) as Partial<AdvancedUiState>;
     return {
       ...DEFAULT_ADV_UI,
-      // Persist only layout + previewEnabled. Pack status and ephemeral flags reset.
-      layout: parsed.layout === 'inline' ? 'inline' : 'dialog',
       previewEnabled: parsed.previewEnabled !== false,
     };
   } catch {
@@ -320,7 +322,6 @@ function loadPersistedAdvancedUi(): AdvancedUiState {
 function persistAdvancedUi(ui: AdvancedUiState): void {
   try {
     localStorage.setItem(LS_KEY_ADV_UI, JSON.stringify({
-      layout: ui.layout,
       previewEnabled: ui.previewEnabled,
     }));
   } catch {
@@ -540,6 +541,22 @@ export function createQueueStore(): QueueStore {
     notify();
   }
 
+  function cloneItemWithDefaults(sourceId: string): string | null {
+    const src = state.items.find(i => i.id === sourceId);
+    if (!src) return null;
+    const newItem: QueueItem = {
+      id: genId(),
+      file: src.file,
+      status: 'waiting',
+      progress: 0,
+      settings: { ...state.globalDefaults },
+      originalDimensions: src.originalDimensions,
+    };
+    state = { ...state, items: [...state.items, newItem] };
+    notify();
+    return newItem.id;
+  }
+
   function setAdvancedUi(patch: Partial<AdvancedUiState>): void {
     state = { ...state, advancedUi: { ...state.advancedUi, ...patch } };
     persistAdvancedUi(state.advancedUi);
@@ -585,5 +602,6 @@ export function createQueueStore(): QueueStore {
     setUpscaleStartedAt,
     setAdvancedUi,
     getAdvancedUi,
+    cloneItemWithDefaults,
   };
 }

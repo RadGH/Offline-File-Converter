@@ -351,3 +351,7 @@ Any follow ups?
 
 No more questions, go!
 
+## 2026-04-28 18:44
+
+Go with the dialog option, remove the temp code. Advanced mode add convert button that gets disabled until you make other changes and each time records the new output in the list. Add to output formats new Gif (Animated) and WebP (Animated) which would have fewer settings than image mode (i’m assuming, keep if it can work with animation). Push when done
+

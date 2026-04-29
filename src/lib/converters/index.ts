@@ -141,9 +141,19 @@ export async function convert(
     }
 
     case 'gif': {
-      // Lazy-load gif.js encoder (gif.js manages its own internal web worker)
+      // Lazy-load gif encoder (gifenc; static single-frame).
       const { convertToGif } = await import('./gif');
       return convertToGif({ file, settings, originalDimensions }, onProgress);
+    }
+
+    case 'gif-animated': {
+      const { convertToGifAnimated } = await import('./gif-animated');
+      return convertToGifAnimated({ file, settings, originalDimensions }, onProgress);
+    }
+
+    case 'webp-animated': {
+      const { convertToWebpAnimated } = await import('./webp-animated');
+      return convertToWebpAnimated({ file, settings, originalDimensions }, onProgress);
     }
 
     default: {

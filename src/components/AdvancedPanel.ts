@@ -111,8 +111,17 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   const prevContainer = el('div', 'adv-section__body');
   prevSection.appendChild(prevContainer);
 
+  // Sticky-footer Convert bar (UX A3) — primary button + result row.
+  const footer = el('div', 'adv-footer');
+  const convertBtn = el('button', 'rd-btn rd-btn--primary adv-convert-btn', 'No changes') as HTMLButtonElement;
+  convertBtn.type = 'button';
+  convertBtn.disabled = true;
+  const resultRow = el('div', 'adv-result-row');
+  resultRow.style.display = 'none';
+  footer.append(convertBtn, resultRow);
+
   body.append(encSection, filtSection, palSection, prevSection);
-  root.append(gate, body);
+  root.append(gate, body, footer);
 
   // ── Pack-status sync ─────────────────────────────────────────────────────
   function syncGate(): void {
@@ -142,6 +151,8 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     }
     previewToggle.checked = ui.previewEnabled;
     prevSection.style.display = ui.previewEnabled ? '' : 'none';
+    // Show footer only when pack is ready
+    footer.style.display = ui.pack.kind === 'ready' ? '' : 'none';
   }
   syncGate();
   store.subscribe(() => syncGate());
@@ -683,6 +694,121 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     }, 250);
   }
 
+  // ── Snapshot helper (drives Convert button enabled state) ──────────────
+  function settingsSnapshot(): string {
+    const cur = store.getGlobalDefaults();
+    return JSON.stringify({
+      f: cur.format, q: cur.quality,
+      w: cur.width, h: cur.height, ratio: cur.maintainAspect,
+      resample: cur.resample, dimUnit: cur.dimensionUnit,
+      filters: cur.filters, overrides: cur.paletteOverrides,
+      gif: cur.gif, webp: cur.webp, png: cur.png, jpeg: cur.jpeg, avif: cur.avif,
+    });
+  }
+
+  function syncConvertButton(): void {
+    if (!isPackLoaded()) return;
+    const ui = store.getAdvancedUi();
+    const items = store.getState().items;
+    const hasItem = items.length > 0;
+    const cur = settingsSnapshot();
+    const last = ui.lastConvertedSnapshot;
+    const dirty = last === null || last !== cur;
+    if (!hasItem) {
+      convertBtn.disabled = true;
+      convertBtn.textContent = 'Add an image first';
+      convertBtn.classList.remove('adv-convert-btn--ready');
+    } else if (!dirty) {
+      convertBtn.disabled = true;
+      convertBtn.textContent = 'No changes';
+      convertBtn.classList.remove('adv-convert-btn--ready');
+    } else {
+      convertBtn.disabled = false;
+      convertBtn.textContent = 'Convert with these settings';
+      convertBtn.classList.add('adv-convert-btn--ready');
+    }
+    // Result row reflects ui.lastResult.
+    const lr = ui.lastResult;
+    if (lr) {
+      resultRow.innerHTML = '';
+      resultRow.style.display = '';
+      const thumb = el('div', 'adv-result-row__thumb');
+      if (lr.thumbDataUrl) {
+        const img = document.createElement('img');
+        img.src = lr.thumbDataUrl;
+        img.alt = '';
+        thumb.appendChild(img);
+      }
+      const meta = el('div', 'adv-result-row__meta');
+      const name = el('div', 'adv-result-row__name', lr.outName);
+      const size = el('div', 'adv-result-row__size', `${(lr.outSize / 1024).toFixed(1)} KB`);
+      meta.append(name, size);
+      const dl = el('button', 'rd-btn rd-btn--secondary adv-result-row__dl', 'Download') as HTMLButtonElement;
+      dl.type = 'button';
+      dl.addEventListener('click', () => {
+        const item = store.getState().items.find(i => i.id === lr.itemId);
+        if (!item?.result) return;
+        const url = URL.createObjectURL(item.result.blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = item.result.outName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+      resultRow.append(thumb, meta, dl);
+    } else {
+      resultRow.style.display = 'none';
+    }
+  }
+
+  convertBtn.addEventListener('click', async () => {
+    const items = store.getState().items;
+    if (items.length === 0) return;
+    const sourceId = items[0].id;
+    convertBtn.disabled = true;
+    convertBtn.textContent = 'Converting…';
+    const newId = store.cloneItemWithDefaults(sourceId);
+    if (!newId) {
+      convertBtn.textContent = 'Error — could not clone';
+      return;
+    }
+    // Wait until the new item finishes processing (status=done or error).
+    const finished = await new Promise<{ ok: boolean; outName?: string; outSize?: number; blob?: Blob }>((resolve) => {
+      const unsub = store.subscribe(() => {
+        const i = store.getState().items.find(it => it.id === newId);
+        if (!i) { unsub(); resolve({ ok: false }); return; }
+        if (i.status === 'done' && i.result) {
+          unsub();
+          resolve({ ok: true, outName: i.result.outName, outSize: i.result.outSize, blob: i.result.blob });
+        } else if (i.status === 'error') {
+          unsub();
+          resolve({ ok: false });
+        }
+      });
+    });
+    if (finished.ok && finished.blob && finished.outName != null && finished.outSize != null) {
+      // Build small thumbnail.
+      let thumbUrl: string | null = null;
+      try {
+        const bmp = await createImageBitmap(finished.blob);
+        const tcv = document.createElement('canvas');
+        tcv.width = 48; tcv.height = 48;
+        const tctx = tcv.getContext('2d'); if (tctx) {
+          tctx.imageSmoothingQuality = 'high';
+          const scale = Math.min(48 / bmp.width, 48 / bmp.height);
+          const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+          tctx.drawImage(bmp, (48 - w) / 2, (48 - h) / 2, w, h);
+          thumbUrl = tcv.toDataURL('image/png');
+        }
+        bmp.close?.();
+      } catch { /* noop */ }
+      store.setAdvancedUi({
+        lastConvertedSnapshot: settingsSnapshot(),
+        lastResult: { itemId: newId, outName: finished.outName, outSize: finished.outSize, thumbDataUrl: thumbUrl },
+      });
+    }
+    syncConvertButton();
+  });
+
   // ── Re-render reactively on relevant store changes ───────────────────────
   let lastSnapshot = '';
   store.subscribe(() => {
@@ -698,6 +824,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       preview: ui.previewEnabled,
       itemCount: store.getState().items.length,
       firstFile: store.getState().items[0]?.file?.name ?? null,
+      lastResult: ui.lastResult?.itemId ?? null,
     });
     if (snap === lastSnapshot) return;
     lastSnapshot = snap;
@@ -705,6 +832,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     renderFilters();
     renderPaletteOverrides();
     renderPreview();
+    syncConvertButton();
   });
 
   // On first item load: try restoring persisted overrides.

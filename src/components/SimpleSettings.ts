@@ -2,15 +2,18 @@ import type { QueueStore, PerFileSettings, OutputFormat } from '@/lib/queue/stor
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { computePairedDimension } from '@/lib/utils/resize';
 
-const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
-  { value: 'jpeg', label: 'JPEG' },
-  { value: 'png',  label: 'PNG'  },
-  { value: 'webp', label: 'WebP' },
-  { value: 'avif', label: 'AVIF' },
-  { value: 'gif',  label: 'GIF'  },
+interface FormatOption { value: OutputFormat; label: string; group?: 'still' | 'animated' }
+const FORMAT_OPTIONS: FormatOption[] = [
+  { value: 'jpeg', label: 'JPEG', group: 'still' },
+  { value: 'png',  label: 'PNG',  group: 'still' },
+  { value: 'webp', label: 'WebP', group: 'still' },
+  { value: 'avif', label: 'AVIF', group: 'still' },
+  { value: 'gif',  label: 'GIF',  group: 'still' },
+  { value: 'gif-animated',  label: 'GIF (Animated)',  group: 'animated' },
+  { value: 'webp-animated', label: 'WebP (Animated)', group: 'animated' },
 ];
 
-const LOSSLESS_FORMATS = new Set<OutputFormat>(['png', 'gif']);
+const LOSSLESS_FORMATS = new Set<OutputFormat>(['png', 'gif', 'gif-animated']);
 
 function isLossless(fmt: OutputFormat): boolean {
   return LOSSLESS_FORMATS.has(fmt);
@@ -31,12 +34,15 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   const formatRow = makeRow('Format');
   const formatSelect = document.createElement('select');
   formatSelect.className = 'rd-select';
+  const stillGroup = document.createElement('optgroup'); stillGroup.label = 'Still';
+  const animGroup = document.createElement('optgroup'); animGroup.label = 'Animated';
   FORMAT_OPTIONS.forEach(opt => {
     const option = document.createElement('option');
     option.value = opt.value;
     option.textContent = opt.label;
-    formatSelect.appendChild(option);
+    (opt.group === 'animated' ? animGroup : stillGroup).appendChild(option);
   });
+  formatSelect.append(stillGroup, animGroup);
   formatRow.control.appendChild(formatSelect);
 
   // ── Quality row ───────────────────────────────────────────────────────────
