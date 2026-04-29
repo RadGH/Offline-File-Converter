@@ -369,3 +369,7 @@ Can we fix that? Do we need to be worried about security? Is it because of gdpr 
 
 Neither animated option works anymore. It used to. Test to make sure the output is actually animated
 
+## 2026-04-28 20:18
+
+Can you fix when comparing, the left side (before) shows the right side underneath it (for animated images). The right side should be clipped.  Also my request to toggle the preview to original size didn't come through - review my previous requests and ensure everything was implemented.
+

@@ -961,6 +961,9 @@ body {
   object-fit: contain;
   pointer-events: none;
   display: block;
+  /* Clip to the RIGHT of the split so animated/transparent before sides
+     don't show the after image bleeding through underneath. */
+  clip-path: inset(0 0 0 var(--split, 50%));
 }
 
 .compare-panel__before-clip {
@@ -1534,6 +1537,10 @@ body {
   position: absolute; inset: 0; overflow: hidden;
   clip-path: inset(0 calc(100% - var(--split)) 0 0);
 }
+.adv-preview__after {
+  /* Mutual-exclusive clipping with before-clip — prevents bleed-through. */
+  clip-path: inset(0 0 0 var(--split));
+}
 .adv-preview__before { position: relative; }
 .adv-preview__handle {
   position: absolute; top: 0; bottom: 0;
@@ -1547,6 +1554,57 @@ body {
   background: var(--accent); border: 2px solid #fff;
 }
 .adv-preview__slider { width: 100%; accent-color: var(--accent); }
+
+/* View selector + alt views */
+.adv-preview__viewrow {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.adv-preview__viewlabel {
+  font-size: 0.75rem; color: var(--text-muted); font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.adv-preview__viewsel { width: auto; flex: 0 1 auto; }
+
+.adv-preview__viewport--scroll {
+  aspect-ratio: auto;
+  max-height: 60vh;
+  overflow: auto;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+  padding: 0.5rem;
+  background:
+    repeating-conic-gradient(var(--cream-3) 0% 25%, var(--cream-2) 0% 50%) 0 0 / 16px 16px;
+}
+.adv-preview__native {
+  display: block;
+  /* Render at the canvas's native pixel size — no scaling. */
+  image-rendering: pixelated;
+}
+
+.adv-preview__sidebyside {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+.adv-preview__sbs-box {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  background: var(--cream-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem;
+  background:
+    repeating-conic-gradient(var(--cream-3) 0% 25%, var(--cream-2) 0% 50%) 0 0 / 12px 12px;
+}
+.adv-preview__sbs-label {
+  font-size: 0.7rem; font-weight: 700; color: var(--text-muted);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.adv-preview__sbs-canvas {
+  width: 100%; height: auto;
+  max-height: 40vh;
+  object-fit: contain;
+  display: block;
+}
 
 /* ── Source/conversion grouping ────────────────────────────────────────── */
 .queue-group {

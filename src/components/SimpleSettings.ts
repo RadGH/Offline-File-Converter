@@ -161,15 +161,16 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   stripRow.control.appendChild(stripLabel);
 
   // ── Convert button (acts on currently selected source) ───────────────────
+  // Lives at the very bottom of the settings panel, below Resample.
+  // The selected-source indicator in the queue is the visual cue — no
+  // separate "Source: filename" line.
   const convertWrap = document.createElement('div');
   convertWrap.className = 'simple-convert';
   const convertBtn = document.createElement('button');
   convertBtn.type = 'button';
   convertBtn.className = 'rd-btn rd-btn--primary simple-convert__btn';
   convertBtn.textContent = 'Convert';
-  const convertHint = document.createElement('p');
-  convertHint.className = 'simple-convert__hint';
-  convertWrap.append(convertBtn, convertHint);
+  convertWrap.append(convertBtn);
   convertBtn.addEventListener('click', () => {
     const id = store.getSelectedSourceId();
     if (!id) return;
@@ -179,15 +180,7 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
     const id = store.getSelectedSourceId();
     const items = store.getState().items;
     const src = id ? items.find(i => i.id === id && i.isSource) : null;
-    if (!src) {
-      convertBtn.disabled = true;
-      convertHint.textContent = items.some(i => i.isSource)
-        ? 'Select a source image in the queue to convert it.'
-        : 'Add an image to convert.';
-    } else {
-      convertBtn.disabled = false;
-      convertHint.textContent = `Source: ${src.file.name}`;
-    }
+    convertBtn.disabled = !src;
   }
   syncConvertBtn();
   store.subscribe(syncConvertBtn);
@@ -199,8 +192,8 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   wrapper.appendChild(aspectRow.el);
   wrapper.appendChild(orientRow.el);
   wrapper.appendChild(stripRow.el);
-  wrapper.appendChild(convertWrap);
   wrapper.appendChild(resampleRow.el);
+  wrapper.appendChild(convertWrap);
 
   // Queue mode is always 'auto' now — ensure stored settings reflect that.
   store.setQueueSettings({ mode: 'auto', autoStart: true });

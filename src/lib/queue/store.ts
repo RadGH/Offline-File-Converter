@@ -221,11 +221,15 @@ export type AdvancedPackStatus =
   | { kind: 'ready' }
   | { kind: 'error'; reason: string };
 
+export type PreviewView = 'slider' | 'original' | 'side-by-side';
+
 export interface AdvancedUiState {
   pack: AdvancedPackStatus;
   /** Whether the dialog is open. */
   dialogOpen: boolean;
   previewEnabled: boolean;
+  /** Which preview layout to render. */
+  previewView: PreviewView;
   /** While true, the preview shows raw source pixels (no filters) so the eyedropper can sample. */
   eyedropperActive: boolean;
   /** Index of the palette override row whose 'from' color is being picked. -1 = none. */
@@ -309,6 +313,7 @@ const DEFAULT_ADV_UI: AdvancedUiState = {
   pack: { kind: 'idle' },
   dialogOpen: false,
   previewEnabled: true,
+  previewView: 'slider',
   eyedropperActive: false,
   eyedropperRow: -1,
   lastConvertedSnapshot: null,
@@ -323,6 +328,8 @@ function loadPersistedAdvancedUi(): AdvancedUiState {
     return {
       ...DEFAULT_ADV_UI,
       previewEnabled: parsed.previewEnabled !== false,
+      previewView: parsed.previewView === 'original' || parsed.previewView === 'side-by-side'
+        ? parsed.previewView : 'slider',
     };
   } catch {
     return { ...DEFAULT_ADV_UI };
@@ -333,6 +340,7 @@ function persistAdvancedUi(ui: AdvancedUiState): void {
   try {
     localStorage.setItem(LS_KEY_ADV_UI, JSON.stringify({
       previewEnabled: ui.previewEnabled,
+      previewView: ui.previewView,
     }));
   } catch {
     // ignore

@@ -614,27 +614,79 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       return;
     }
 
+    // View selector: slider | original | side-by-side
+    const viewRow = el('div', 'adv-preview__viewrow');
+    const viewLabel = el('span', 'adv-preview__viewlabel', 'View:');
+    const viewSel = el('select', 'rd-select adv-preview__viewsel') as HTMLSelectElement;
+    [
+      ['slider', 'Before / after slider'],
+      ['original', 'Original size (1:1)'],
+      ['side-by-side', 'Side by side'],
+    ].forEach(([v, l]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = l;
+      viewSel.appendChild(o);
+    });
+    viewSel.value = ui.previewView;
+    // Original-size + side-by-side don't make sense during eyedropper mode.
+    if (ui.eyedropperActive) {
+      viewSel.disabled = true;
+      viewSel.value = 'slider';
+    }
+    viewSel.addEventListener('change', () => {
+      store.setAdvancedUi({ previewView: viewSel.value as import('@/lib/queue/store').PreviewView });
+    });
+    viewRow.append(viewLabel, viewSel);
+
     const wrap = el('div', 'adv-preview');
-    const viewport = el('div', 'adv-preview__viewport');
-    const beforeWrap = el('div', 'adv-preview__before-clip');
-    const afterCanvas = document.createElement('canvas'); afterCanvas.className = 'adv-preview__layer adv-preview__after';
-    const beforeCanvas = document.createElement('canvas'); beforeCanvas.className = 'adv-preview__layer adv-preview__before';
-    const handle = el('div', 'adv-preview__handle');
-    beforeWrap.appendChild(beforeCanvas);
-    viewport.append(afterCanvas, beforeWrap, handle);
-    wrap.appendChild(viewport);
+    wrap.appendChild(viewRow);
 
     const eyedropperBanner = el('div', 'adv-eyedropper-banner', 'Filters off — click a pixel to pick its color (Esc to cancel).');
     eyedropperBanner.style.display = ui.eyedropperActive ? '' : 'none';
-    wrap.insertBefore(eyedropperBanner, viewport);
+    wrap.appendChild(eyedropperBanner);
 
-    const slider = el('input', 'adv-preview__slider') as HTMLInputElement;
-    slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = '50';
-    slider.style.display = ui.eyedropperActive ? 'none' : '';
-    slider.addEventListener('input', () => {
-      viewport.style.setProperty('--split', `${slider.value}%`);
-    });
-    wrap.appendChild(slider);
+    // Build the appropriate view container.
+    const view = ui.eyedropperActive ? 'slider' : ui.previewView;
+    const beforeCanvas = document.createElement('canvas');
+    const afterCanvas = document.createElement('canvas');
+    let viewport: HTMLElement;
+    let slider: HTMLInputElement | null = null;
+
+    if (view === 'slider') {
+      viewport = el('div', 'adv-preview__viewport');
+      const beforeWrap = el('div', 'adv-preview__before-clip');
+      afterCanvas.className = 'adv-preview__layer adv-preview__after';
+      beforeCanvas.className = 'adv-preview__layer adv-preview__before';
+      const handle = el('div', 'adv-preview__handle');
+      beforeWrap.appendChild(beforeCanvas);
+      viewport.append(afterCanvas, beforeWrap, handle);
+      wrap.appendChild(viewport);
+      slider = el('input', 'adv-preview__slider') as HTMLInputElement;
+      slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = '50';
+      slider.style.display = ui.eyedropperActive ? 'none' : '';
+      slider.addEventListener('input', () => {
+        viewport.style.setProperty('--split', `${slider!.value}%`);
+      });
+      wrap.appendChild(slider);
+    } else if (view === 'original') {
+      // 1:1 preview at native processed dimensions; scrolls if larger than container.
+      viewport = el('div', 'adv-preview__viewport adv-preview__viewport--scroll');
+      afterCanvas.className = 'adv-preview__native';
+      viewport.appendChild(afterCanvas);
+      wrap.appendChild(viewport);
+    } else {
+      // Side-by-side: before above, after below, each labeled.
+      viewport = el('div', 'adv-preview__sidebyside');
+      const beforeBox = el('div', 'adv-preview__sbs-box');
+      beforeBox.appendChild(el('span', 'adv-preview__sbs-label', 'Original'));
+      beforeCanvas.className = 'adv-preview__sbs-canvas';
+      beforeBox.appendChild(beforeCanvas);
+      const afterBox = el('div', 'adv-preview__sbs-box');
+      afterBox.appendChild(el('span', 'adv-preview__sbs-label', 'Processed'));
+      afterCanvas.className = 'adv-preview__sbs-canvas';
+      afterBox.appendChild(afterCanvas);
+      viewport.append(beforeBox, afterBox);
+      wrap.appendChild(viewport);
+    }
 
     prevContainer.appendChild(wrap);
 
@@ -643,8 +695,11 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     previewDebounce = window.setTimeout(async () => {
       const cur = store.getGlobalDefaults();
       try {
+        // Original-size view requests a much larger canvas (capped to keep the
+        // page responsive for very large images).
+        const maxSide = view === 'original' ? 4096 : 480;
         const result = await packRef!.preview.renderPreview(item.file, cur, {
-          maxSide: 480,
+          maxSide,
           raw: ui.eyedropperActive,
         });
         if (myToken !== previewRenderToken) return;
