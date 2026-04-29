@@ -379,3 +379,9 @@ Change it so the filename after every conversion has the correct filename. I con
 
 When you click convert or recovert, if you had the compare tool open, automatically switch to the new image compare tool instead so you can see the new output.
 
+## 2026-04-28 20:40
+
+On desktop make the Advanced Settings be full screen (actually, always full screen). On desktop move the preview and convert buttons to the right column.
+
+Change .queue-item--source remove border instead leave it assigned to .queue-group--selected
+

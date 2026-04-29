@@ -120,8 +120,19 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   resultRow.style.display = 'none';
   footer.append(convertBtn, resultRow);
 
-  body.append(encSection, filtSection, palSection, prevSection);
-  root.append(gate, body, footer);
+  // Two-column layout on desktop: encoder/filters/palette in the left column,
+  // preview + sticky Convert footer in the right column. On mobile the grid
+  // collapses to a single stacked column.
+  const bodyLeft = document.createElement('div');
+  bodyLeft.className = 'adv-body__left';
+  bodyLeft.append(encSection, filtSection, palSection);
+
+  const bodyRight = document.createElement('div');
+  bodyRight.className = 'adv-body__right';
+  bodyRight.append(prevSection, footer);
+
+  body.append(bodyLeft, bodyRight);
+  root.append(gate, body);
 
   // ── Pack-status sync ─────────────────────────────────────────────────────
   function syncGate(): void {

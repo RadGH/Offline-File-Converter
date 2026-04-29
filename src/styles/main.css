@@ -1623,7 +1623,10 @@ body {
 .queue-item--source {
   cursor: pointer;
   position: relative;
-  border-style: solid;
+  /* No border on the source row itself — the .queue-group container holds
+     the visible frame, which only highlights when the group is selected. */
+  border: none;
+  background: transparent;
 }
 .queue-group--selected .queue-item--source::before {
   content: '';
@@ -1732,18 +1735,85 @@ body {
 }
 .rd-layout-toggle__open { padding: 0.25rem 0.7rem; font-size: 0.75rem; }
 
-/* ── Dialog override (side-panel feel) ────────────────────────────────── */
-.adv-dialog-backdrop { background: rgba(30, 24, 18, 0.35); }
-.adv-dialog {
-  max-width: 420px; height: 90dvh; max-height: 90dvh;
-  margin-left: auto; margin-right: 1rem;
-  align-self: center;
+/* ── Advanced dialog — always full-screen ─────────────────────────────── */
+.adv-dialog-backdrop {
+  background: rgba(30, 24, 18, 0.35);
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
 }
-.adv-dialog-backdrop { justify-content: flex-end; }
-.adv-dialog__content { padding: 1rem 1.25rem; }
-@media (max-width: 768px) {
-  .adv-dialog { max-width: 100%; height: 100dvh; margin: 0; }
-  .adv-dialog-backdrop { padding: 0; justify-content: stretch; }
+.adv-dialog {
+  max-width: 100%;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+.adv-dialog__content {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  /* Avoid double-scroll: the left column scrolls; right column is fixed. */
+  overflow: hidden;
+}
+.adv-dialog__content > .adv-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.adv-dialog__content > .adv-panel > .adv-body {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Two-column body on desktop: settings stack on the left, preview + Convert
+   footer on the right. The left side scrolls; the right side is fixed-height. */
+.adv-body__left,
+.adv-body__right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .adv-body {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 1rem;
+    height: 100%;
+    align-items: stretch;
+  }
+  .adv-body__left {
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    min-height: 0;
+  }
+  .adv-body__right {
+    overflow: hidden;
+    min-height: 0;
+  }
+  .adv-body__right .adv-section--preview {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .adv-body__right .adv-section--preview .adv-section__body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+  }
+  /* Footer sticks to the bottom of the right column. */
+  .adv-body__right .adv-footer {
+    position: relative;
+    bottom: auto;
+    margin-top: auto;
+  }
+}
+@media (max-width: 767px) {
+  .adv-body { display: flex; flex-direction: column; gap: 0.75rem; }
   .rd-layout-toggle__label { display: none; }
 }
 
