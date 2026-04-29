@@ -365,3 +365,7 @@ I converted to an animated gif and it actually worked! However I tried to conver
 
 Can we fix that? Do we need to be worried about security? Is it because of gdpr thing (google tag manager)?
 
+## 2026-04-28 19:58
+
+Neither animated option works anymore. It used to. Test to make sure the output is actually animated
+

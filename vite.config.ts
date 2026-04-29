@@ -37,7 +37,7 @@ export default defineConfig({
   // inlines them the relative URLs break. Excluding it causes Vite to serve
   // the raw ESM from node_modules/onnxruntime-web/dist/ directly.
   optimizeDeps: {
-    exclude: ['@jsquash/avif', 'onnxruntime-web'],
+    exclude: ['@jsquash/avif', '@jsquash/webp', '@jsquash/jpeg', 'onnxruntime-web'],
   },
   // Ensure .wasm files are served with the correct MIME type
   assetsInclude: ['**/*.wasm'],
