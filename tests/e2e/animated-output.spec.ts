@@ -61,11 +61,11 @@ async function uploadAnimAndConvert(page: import('@playwright/test').Page, forma
   // Click Convert below settings
   await page.locator('.simple-convert__btn').click();
 
-  // Wait for at least one conversion child to be done (besides the initial auto one).
-  // The output we care about is the LAST done child (most recent).
+  // Wait for at least one conversion child to be done. The Done badge was
+  // removed — completion is signalled by the Download button appearing.
   await expect(async () => {
-    const lastDoneCount = await page.locator('.queue-item--conversion .queue-item__badge--done').count();
-    expect(lastDoneCount).toBeGreaterThan(0);
+    const downloadBtns = await page.locator('.queue-item--conversion .queue-item__download-btn').count();
+    expect(downloadBtns).toBeGreaterThan(0);
   }).toPass({ timeout: 60_000 });
 
   // Pull the most recent completed conversion's blob via the Download button.

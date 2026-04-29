@@ -81,23 +81,56 @@ export function setCompareOpenState(id: string, open: boolean): void {
 /** Blob URLs for thumbnails, keyed by item id. Created on first render and
  *  reused across re-renders so rapid store updates (e.g. progress ticks)
  *  don't churn URLs and cause net::ERR_FILE_NOT_FOUND on in-flight loads. */
-const thumbUrlCache = new Map<string, string>();
+interface ThumbCacheEntry {
+  /** Blob URL for the source file — always created on first render. */
+  sourceUrl: string;
+  /** Blob URL for the conversion result — created lazily once result lands. */
+  resultUrl?: string;
+  /** Identity check: result blob whose URL is cached. Lets us regenerate
+   *  the URL if the result changes (e.g. retry produces a new blob). */
+  resultBlob?: Blob;
+}
+const thumbUrlCache = new Map<string, ThumbCacheEntry>();
 
+/** Returns the URL that should populate the queue-item thumbnail and the
+ *  Compare panel's "after" image. For source rows and unfinished conversions
+ *  this is the source file. For DONE conversions it's the result blob, so the
+ *  child thumbnail visually reflects what was actually produced. */
 function getOrCreateThumbUrl(item: QueueItemData): string {
-  let url = thumbUrlCache.get(item.id);
-  if (!url) {
-    url = URL.createObjectURL(item.file);
-    thumbUrlCache.set(item.id, url);
+  let entry = thumbUrlCache.get(item.id);
+  if (!entry) {
+    entry = { sourceUrl: URL.createObjectURL(item.file) };
+    thumbUrlCache.set(item.id, entry);
   }
-  return url;
+  if (item.status === 'done' && item.result && !item.isSource) {
+    if (entry.resultBlob !== item.result.blob) {
+      if (entry.resultUrl) URL.revokeObjectURL(entry.resultUrl);
+      entry.resultUrl = URL.createObjectURL(item.result.blob);
+      entry.resultBlob = item.result.blob;
+    }
+    return entry.resultUrl!;
+  }
+  return entry.sourceUrl;
+}
+
+/** Always returns the source blob URL (used by the Compare panel's "before"
+ *  side, which must show the unmodified original). */
+function getSourceThumbUrl(item: QueueItemData): string {
+  let entry = thumbUrlCache.get(item.id);
+  if (!entry) {
+    entry = { sourceUrl: URL.createObjectURL(item.file) };
+    thumbUrlCache.set(item.id, entry);
+  }
+  return entry.sourceUrl;
 }
 
 /** Called by FileQueue when an item is removed from the store — revokes its
  *  cached blob URL and drops companion state. */
 export function disposeQueueItem(itemId: string): void {
-  const url = thumbUrlCache.get(itemId);
-  if (url) {
-    URL.revokeObjectURL(url);
+  const entry = thumbUrlCache.get(itemId);
+  if (entry) {
+    URL.revokeObjectURL(entry.sourceUrl);
+    if (entry.resultUrl) URL.revokeObjectURL(entry.resultUrl);
     thumbUrlCache.delete(itemId);
   }
   compareOpen.delete(itemId);
@@ -124,8 +157,14 @@ export function createQueueItemEl(
   const thumb = document.createElement('img');
   thumb.className = 'queue-item__thumb';
   thumb.alt = item.file.name;
-  const originalUrl = getOrCreateThumbUrl(item);
-  thumb.src = originalUrl;
+  // Thumb shows the result (post-filter / post-encode) when the conversion
+  // is done so the queue UI accurately reflects each child's output. Source
+  // rows and unfinished children fall back to the original blob.
+  const thumbUrl = getOrCreateThumbUrl(item);
+  thumb.src = thumbUrl;
+  // Compare's "before" pane always uses the unmodified source, regardless of
+  // whether this row is a source or a done conversion.
+  const originalUrl = getSourceThumbUrl(item);
 
   const info = document.createElement('div');
   info.className = 'queue-item__info';
@@ -349,7 +388,10 @@ export function createQueueItemEl(
   el.appendChild(info);
   if (!isSource && savedBubble) el.appendChild(savedBubble);
   if (!isSource && upscaledBubble) el.appendChild(upscaledBubble);
-  if (!isSource) el.appendChild(badge);
+  // Badge: hidden on sources, and hidden on done conversions (the Download
+  // button is the indicator that the conversion is complete). Still shown
+  // for processing/error/cancelled/waiting so the user can see in-flight state.
+  if (!isSource && item.status !== 'done') el.appendChild(badge);
   el.appendChild(actions);
   el.appendChild(removeBtn);
 

@@ -18,7 +18,7 @@ import {
   DEFAULT_FILTERS, DEFAULT_GIF_ADVANCED, DEFAULT_WEBP_ADVANCED,
   DEFAULT_PNG_ADVANCED, DEFAULT_JPEG_ADVANCED, DEFAULT_AVIF_ADVANCED,
 } from '@/lib/queue/store';
-import { loadAdvancedPack, unloadAdvancedPack, isLoaded as isPackLoaded, type AdvancedPack } from '@/lib/advanced/pack-loader';
+import { loadAdvancedPack, isLoaded as isPackLoaded, type AdvancedPack } from '@/lib/advanced/pack-loader';
 
 let packRef: AdvancedPack | null = null;
 
@@ -66,18 +66,9 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   // ── Body (hidden until loaded) ──────────────────────────────────────────
   const body = el('div', 'adv-body');
   body.style.display = 'none';
-
-  // Header: Unload + Preview toggle
-  const bodyHeader = el('div', 'adv-body__header');
-  const unloadBtn = el('button', 'adv-link', 'Unload advanced');
-  unloadBtn.type = 'button';
-  const previewToggleLabel = el('label', 'adv-checkbox-label');
-  const previewToggle = el('input');
-  previewToggle.type = 'checkbox';
-  previewToggle.className = 'rd-checkbox';
-  previewToggleLabel.append(previewToggle, document.createTextNode(' Preview'));
-  bodyHeader.append(unloadBtn, previewToggleLabel);
-  body.appendChild(bodyHeader);
+  // Note: the previous "Unload advanced" link and "Preview" checkbox were
+  // removed per UX feedback — preview is always on, and the pack stays
+  // loaded for the session once initialized.
 
   // Section: Encoder Options
   const encSection = el('section', 'adv-section');
@@ -120,16 +111,17 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
   resultRow.style.display = 'none';
   footer.append(convertBtn, resultRow);
 
-  // Two-column layout on desktop: encoder/filters/palette in the left column,
-  // preview + sticky Convert footer in the right column. On mobile the grid
-  // collapses to a single stacked column.
+  // Two-column layout on desktop:
+  //   left  = encoder options, design filters, palette overrides, Convert footer
+  //   right = preview only
+  // On mobile the grid collapses to a single stacked column.
   const bodyLeft = document.createElement('div');
   bodyLeft.className = 'adv-body__left';
-  bodyLeft.append(encSection, filtSection, palSection);
+  bodyLeft.append(encSection, filtSection, palSection, footer);
 
   const bodyRight = document.createElement('div');
   bodyRight.className = 'adv-body__right';
-  bodyRight.append(prevSection, footer);
+  bodyRight.append(prevSection);
 
   body.append(bodyLeft, bodyRight);
   root.append(gate, body);
@@ -160,8 +152,8 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       gate.style.display = '';
       body.style.display = 'none';
     }
-    previewToggle.checked = ui.previewEnabled;
-    prevSection.style.display = ui.previewEnabled ? '' : 'none';
+    // Preview is always shown when the pack is ready.
+    prevSection.style.display = '';
     // Show footer only when pack is ready
     footer.style.display = ui.pack.kind === 'ready' ? '' : 'none';
   }
@@ -193,16 +185,8 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     }
   });
 
-  unloadBtn.addEventListener('click', () => {
-    if (!confirm('Unload advanced features? Your settings remain saved but the panel will go back to "Load".')) return;
-    unloadAdvancedPack();
-    packRef = null;
-    store.setAdvancedUi({ pack: { kind: 'idle' }, eyedropperActive: false, eyedropperRow: -1 });
-  });
-
-  previewToggle.addEventListener('change', () => {
-    store.setAdvancedUi({ previewEnabled: previewToggle.checked });
-  });
+  // Unload + Preview toggle were removed: the pack stays loaded for the
+  // session and the preview is always rendered.
 
   // ── Render encoder/filter/palette/preview UI when pack is ready ──────────
   function renderAll(): void {
@@ -237,11 +221,15 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       encContainer.appendChild(r.row);
     }
 
-    if (fmt === 'gif') renderGifOptions(encContainer, cur.gif ?? { ...DEFAULT_GIF_ADVANCED });
-    if (fmt === 'webp') renderWebpOptions(encContainer, cur.webp ?? { ...DEFAULT_WEBP_ADVANCED });
+    if (fmt === 'gif' || fmt === 'gif-animated') renderGifOptions(encContainer, cur.gif ?? { ...DEFAULT_GIF_ADVANCED });
+    if (fmt === 'webp' || fmt === 'webp-animated') renderWebpOptions(encContainer, cur.webp ?? { ...DEFAULT_WEBP_ADVANCED });
     if (fmt === 'png') renderPngOptions(encContainer, cur.png ?? { ...DEFAULT_PNG_ADVANCED });
     if (fmt === 'jpeg') renderJpegOptions(encContainer, cur.jpeg ?? { ...DEFAULT_JPEG_ADVANCED });
     if (fmt === 'avif') renderAvifOptions(encContainer, cur.avif ?? { ...DEFAULT_AVIF_ADVANCED });
+
+    // Hide the entire section when there are no controls to render
+    // (e.g. format='auto' before resolve, or any format with no specific options).
+    encSection.style.display = encContainer.children.length === 0 ? 'none' : '';
   }
 
   function renderGifOptions(parent: HTMLElement, g: GifAdvancedSettings): void {
@@ -615,10 +603,6 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     prevContainer.innerHTML = '';
     if (!packRef) return;
     const ui = store.getAdvancedUi();
-    if (!ui.previewEnabled) {
-      prevContainer.appendChild(el('p', 'adv-empty', 'Preview is off.'));
-      return;
-    }
     const item = getPreviewItem();
     if (!item) {
       prevContainer.appendChild(el('p', 'adv-empty', 'Add an image to see a preview.'));
@@ -891,7 +875,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       png: cur.png, jpeg: cur.jpeg, avif: cur.avif,
       overrides: cur.paletteOverrides,
       eye: ui.eyedropperActive, eyeRow: ui.eyedropperRow,
-      preview: ui.previewEnabled,
+      previewView: ui.previewView,
       itemCount: store.getState().items.length,
       firstFile: store.getState().items[0]?.file?.name ?? null,
       lastResult: ui.lastResult?.itemId ?? null,
