@@ -1,6 +1,6 @@
 import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
-import { createQueueItemEl, disposeQueueItem } from '@/components/QueueItem';
+import { createQueueItemEl, disposeQueueItem, isCompareOpen, setCompareOpenState } from '@/components/QueueItem';
 
 /**
  * Renders the queue as a nested tree:
@@ -25,6 +25,10 @@ export function createFileQueue(store: QueueStore, processor: QueueProcessor): H
   container.appendChild(list);
 
   let renderedIds = new Set<string>();
+  // Per-source set of conversion-children IDs that were already 'done' last
+  // render. Used to detect freshly-completed conversions so we can transfer
+  // any open compare panels to the new output (auto-follow on Convert).
+  const prevDoneBySource = new Map<string, Set<string>>();
 
   function render(): void {
     const state = store.getState();
@@ -35,6 +39,31 @@ export function createFileQueue(store: QueueStore, processor: QueueProcessor): H
       if (!currentIds.has(prevId)) disposeQueueItem(prevId);
     }
     renderedIds = currentIds;
+
+    // ── Compare auto-follow ────────────────────────────────────────────────
+    // For each source, find conversions that just finished (in done now,
+    // not done last render). If any sibling currently has compare open,
+    // close those and open compare on the newest finished one instead.
+    for (const src of items.filter(i => i.isSource)) {
+      const children = items.filter(i => i.parentId === src.id);
+      const doneNow = new Set(children.filter(c => c.status === 'done').map(c => c.id));
+      const prevDone = prevDoneBySource.get(src.id) ?? new Set<string>();
+      const newlyDone = [...doneNow].filter(id => !prevDone.has(id));
+      if (newlyDone.length > 0) {
+        const anyOpen = children.some(c => isCompareOpen(c.id));
+        if (anyOpen) {
+          // Close all siblings, then open the most recent newly-done one
+          // (children retain insertion order, so the last in newlyDone is newest).
+          for (const c of children) setCompareOpenState(c.id, false);
+          setCompareOpenState(newlyDone[newlyDone.length - 1], true);
+        }
+      }
+      prevDoneBySource.set(src.id, doneNow);
+    }
+    // Drop tracking for sources that no longer exist.
+    for (const id of [...prevDoneBySource.keys()]) {
+      if (!items.some(i => i.id === id && i.isSource)) prevDoneBySource.delete(id);
+    }
 
     list.innerHTML = '';
 

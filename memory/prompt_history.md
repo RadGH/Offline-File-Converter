@@ -373,3 +373,9 @@ Neither animated option works anymore. It used to. Test to make sure the output 
 
 Can you fix when comparing, the left side (before) shows the right side underneath it (for animated images). The right side should be clipped.  Also my request to toggle the preview to original size didn't come through - review my previous requests and ensure everything was implemented.
 
+## 2026-04-28 20:29
+
+Change it so the filename after every conversion has the correct filename. I converted webp to jpg and it shows .webp as the parent item (correct) but also webp as the output (incorrect). Inside the queue area, the filename displayed is incorrect ut still downloads correctly.
+
+When you click convert or recovert, if you had the compare tool open, automatically switch to the new image compare tool instead so you can see the new output.
+

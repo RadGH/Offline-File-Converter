@@ -3,6 +3,7 @@ import type { QueueStore } from '@/lib/queue/store';
 import type { QueueProcessor } from '@/lib/queue/processor';
 import { formatBytes } from '@/lib/utils/format-bytes';
 import { settingsDiffer } from '@/lib/utils/settings-differ';
+import { extForOutput } from '@/lib/utils/mime';
 
 export { settingsDiffer };
 
@@ -16,6 +17,16 @@ const FORMAT_FACTOR: Record<OutputFormat, number> = {
   'gif-animated': 1.50,
   'webp-animated': 0.80,
 };
+
+/** Predict the output filename for a conversion that hasn't run yet.
+ *  When format='auto' the real ext is decided at convert time, so we leave the
+ *  source extension in place and let the result.outName overwrite once done. */
+function predictOutName(sourceName: string, format: OutputFormat): string {
+  const dotIdx = sourceName.lastIndexOf('.');
+  const base = dotIdx >= 0 ? sourceName.slice(0, dotIdx) : sourceName;
+  if (format === 'auto') return sourceName;
+  return `${base}.${extForOutput(format)}`;
+}
 
 function estimatedOutputSize(item: QueueItemData): number | null {
   if (!item.originalDimensions) return null;
@@ -53,8 +64,19 @@ function formatDuration(ms: number): string {
   return r === 0 ? `${m}m` : `${m}m ${r}s`;
 }
 
-/** Tracks which items have their compare panel open. */
+/** Tracks which items have their compare panel open. Exported so FileQueue
+ *  can transfer the open state to a new conversion when one finishes (so
+ *  clicking Convert while comparing auto-shows the new output). */
 const compareOpen = new Map<string, boolean>();
+
+export function isCompareOpen(id: string): boolean {
+  return compareOpen.get(id) === true;
+}
+
+/** Force the compare-open state. Used by FileQueue's auto-follow logic. */
+export function setCompareOpenState(id: string, open: boolean): void {
+  compareOpen.set(id, open);
+}
 
 /** Blob URLs for thumbnails, keyed by item id. Created on first render and
  *  reused across re-renders so rapid store updates (e.g. progress ticks)
@@ -110,8 +132,12 @@ export function createQueueItemEl(
 
   const name = document.createElement('span');
   name.className = 'queue-item__name';
-  name.textContent = item.file.name;
-  name.title = item.file.name;
+  // Source rows: original filename. Conversion children: predicted/actual output name.
+  const displayName = !item.isSource
+    ? (item.result?.outName ?? predictOutName(item.file.name, item.settings.format))
+    : item.file.name;
+  name.textContent = displayName;
+  name.title = displayName;
 
   const meta = document.createElement('span');
   meta.className = 'queue-item__meta';

@@ -242,7 +242,9 @@ export async function convertToWebpAnimated(
       outW, outH,
       frame.durationMs,
       true,   // blend over previous
-      false,  // do not dispose to background
+      true,   // dispose to background BEFORE drawing the next frame
+              // (prevents ghosting when the next frame has transparent pixels;
+              // our frames are full composited bitmaps so each is self-contained).
       parsed.innerChunks,
     ));
 
