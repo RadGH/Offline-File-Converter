@@ -203,13 +203,17 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
   function syncFromDefaults(defaults: PerFileSettings): void {
     formatSelect.value = defaults.format;
     const lossless = isLossless(defaults.format);
+    const isAuto = defaults.format === 'auto';
 
     // Quality: lossy → show slider+readout. Lossless → hide both, show "Lossless".
+    // Automatic → hide the entire Quality row; the resolved format decides at
+    // convert time and the slider value would be misleading either way.
     qualitySlider.value = String(defaults.quality);
     qualityReadout.textContent = String(defaults.quality);
-    qualitySlider.style.display = lossless ? 'none' : '';
-    qualityReadout.style.display = lossless ? 'none' : '';
-    losslessNote.style.display = lossless ? '' : 'none';
+    qualitySlider.style.display = lossless || isAuto ? 'none' : '';
+    qualityReadout.style.display = lossless || isAuto ? 'none' : '';
+    losslessNote.style.display = lossless && !isAuto ? '' : 'none';
+    qualityRow.el.style.display = isAuto ? 'none' : '';
 
     // Resample only relevant for lossy formats per spec — hide row otherwise.
     resampleRow.el.style.display = lossless ? 'none' : '';

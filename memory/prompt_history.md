@@ -393,3 +393,7 @@ I see new column layout for advanced settings but it is still not full screen. I
 
 It's close but now the advanced settings Unload Advanced is floating in the middle and Preview is at the bottom and way too  small. .adv-body needs some grid work. I don't want to do it, figure it out. Remove the "Preview" checkbox and just always show the preview. Move the convert button beneath the Palette Overwrite instead of being on the left column. Remove the "Unload advanced" option, just keep it loaded instead. That way, preview will be top-aligned with Encoder Options. Hide Encoder OPtions if there are no encoder option fields to display.
 
+## 2026-04-30 12:26
+
+When automatic format is selected, hide the jpg quality slider/lossless text
+
