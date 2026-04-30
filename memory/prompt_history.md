@@ -409,3 +409,7 @@ Is it feasible to add a lightweight MP4 output for animated gif/webp? I'm thinki
 
 Approved - go. You make the decisions this run.
 
+## 2026-04-30 12:59
+
+Worked GREAT. However the preview for video does not work, the output side is blank
+

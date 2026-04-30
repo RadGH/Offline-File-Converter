@@ -23,6 +23,58 @@ import { loadAdvancedPack, isLoaded as isPackLoaded, type AdvancedPack } from '@
 
 let packRef: AdvancedPack | null = null;
 
+async function captureImageThumbnail(blob: Blob, size: number): Promise<string | null> {
+  const bmp = await createImageBitmap(blob);
+  const tcv = document.createElement('canvas');
+  tcv.width = size; tcv.height = size;
+  const tctx = tcv.getContext('2d');
+  if (!tctx) { bmp.close?.(); return null; }
+  tctx.imageSmoothingQuality = 'high';
+  const scale = Math.min(size / bmp.width, size / bmp.height);
+  const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+  tctx.drawImage(bmp, (size - w) / 2, (size - h) / 2, w, h);
+  bmp.close?.();
+  return tcv.toDataURL('image/png');
+}
+
+async function captureVideoThumbnail(blob: Blob, size: number): Promise<string | null> {
+  // Decode the first frame from the result video by loading it into an
+  // off-DOM <video>, waiting for `loadeddata`, then drawing it to a canvas.
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement('video');
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    v.src = url;
+    const finish = (data: string | null) => {
+      URL.revokeObjectURL(url);
+      resolve(data);
+    };
+    const onReady = () => {
+      try {
+        const tcv = document.createElement('canvas');
+        tcv.width = size; tcv.height = size;
+        const tctx = tcv.getContext('2d');
+        if (!tctx) return finish(null);
+        tctx.imageSmoothingQuality = 'high';
+        const vw = v.videoWidth || size, vh = v.videoHeight || size;
+        const scale = Math.min(size / vw, size / vh);
+        const w = Math.round(vw * scale), h = Math.round(vh * scale);
+        tctx.drawImage(v, (size - w) / 2, (size - h) / 2, w, h);
+        finish(tcv.toDataURL('image/png'));
+      } catch {
+        finish(null);
+      }
+    };
+    v.addEventListener('loadeddata', onReady, { once: true });
+    v.addEventListener('error', () => finish(null), { once: true });
+    // Safety timeout — don't hang the result row forever if the video
+    // takes too long to decode metadata.
+    setTimeout(() => finish(null), 5000);
+  });
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -892,21 +944,15 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       });
     });
     if (finished.ok && finished.blob && finished.outName != null && finished.outSize != null) {
-      // Build small thumbnail.
+      // Build a small static thumbnail. For images we use createImageBitmap;
+      // for videos that throws, so we draw the first decoded frame from a
+      // <video> element instead.
       let thumbUrl: string | null = null;
       try {
-        const bmp = await createImageBitmap(finished.blob);
-        const tcv = document.createElement('canvas');
-        tcv.width = 48; tcv.height = 48;
-        const tctx = tcv.getContext('2d'); if (tctx) {
-          tctx.imageSmoothingQuality = 'high';
-          const scale = Math.min(48 / bmp.width, 48 / bmp.height);
-          const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
-          tctx.drawImage(bmp, (48 - w) / 2, (48 - h) / 2, w, h);
-          thumbUrl = tcv.toDataURL('image/png');
-        }
-        bmp.close?.();
-      } catch { /* noop */ }
+        thumbUrl = finished.blob.type.startsWith('video/')
+          ? await captureVideoThumbnail(finished.blob, 48)
+          : await captureImageThumbnail(finished.blob, 48);
+      } catch { /* noop — leave thumbUrl null, result row falls back to text */ }
       store.setAdvancedUi({
         lastConvertedSnapshot: settingsSnapshot(),
         lastResult: { itemId: newId, outName: finished.outName, outSize: finished.outSize, thumbDataUrl: thumbUrl },

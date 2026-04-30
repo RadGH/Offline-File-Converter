@@ -155,14 +155,30 @@ export function createQueueItemEl(
   const el = document.createElement('div');
   el.className = `queue-item queue-item--${item.status}`;
 
-  const thumb = document.createElement('img');
-  thumb.className = 'queue-item__thumb';
-  thumb.alt = item.file.name;
   // Thumb shows the result (post-filter / post-encode) when the conversion
   // is done so the queue UI accurately reflects each child's output. Source
   // rows and unfinished children fall back to the original blob.
   const thumbUrl = getOrCreateThumbUrl(item);
-  thumb.src = thumbUrl;
+  const thumbIsVideo = !item.isSource && item.status === 'done'
+    && item.result?.blob.type.startsWith('video/') === true;
+  let thumb: HTMLElement;
+  if (thumbIsVideo) {
+    const v = document.createElement('video');
+    v.className = 'queue-item__thumb';
+    v.src = thumbUrl;
+    v.muted = true;
+    v.loop = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.setAttribute('aria-label', item.file.name);
+    thumb = v;
+  } else {
+    const img = document.createElement('img');
+    img.className = 'queue-item__thumb';
+    img.alt = item.file.name;
+    img.src = thumbUrl;
+    thumb = img;
+  }
   // Compare's "before" pane always uses the unmodified source, regardless of
   // whether this row is a source or a done conversion.
   const originalUrl = getSourceThumbUrl(item);
@@ -404,6 +420,25 @@ export function createQueueItemEl(
   return wrapper;
 }
 
+function makeMediaElement(url: string, blobType: string, className: string, alt: string): HTMLImageElement | HTMLVideoElement {
+  if (blobType.startsWith('video/')) {
+    const v = document.createElement('video');
+    v.className = className;
+    v.src = url;
+    v.muted = true;
+    v.loop = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.setAttribute('aria-label', alt);
+    return v;
+  }
+  const img = document.createElement('img');
+  img.className = className;
+  img.alt = alt;
+  img.src = url;
+  return img;
+}
+
 /** Before/after slider comparison panel. `before` is the original Blob URL; `after` is the result Blob. */
 function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob): HTMLElement {
   const panel = document.createElement('div');
@@ -425,15 +460,15 @@ function buildComparePanel(panelId: string, beforeUrl: string, afterBlob: Blob):
 
   const afterUrl = URL.createObjectURL(afterBlob);
 
-  const afterImg = document.createElement('img');
-  afterImg.className = 'compare-panel__after';
-  afterImg.alt = 'Converted result';
-  afterImg.src = afterUrl;
+  // For MP4 / WebM the after side must be a <video>; <img> can't render video.
+  const afterImg = makeMediaElement(afterUrl, afterBlob.type, 'compare-panel__after', 'Converted result');
   afterImg.draggable = false;
 
   const beforeClip = document.createElement('div');
   beforeClip.className = 'compare-panel__before-clip';
 
+  // The "before" side could itself be a video later, but for now sources are
+  // images; keep this as <img>.
   const beforeImg = document.createElement('img');
   beforeImg.className = 'compare-panel__before';
   beforeImg.alt = 'Original';
