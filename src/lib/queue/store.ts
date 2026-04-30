@@ -295,8 +295,10 @@ export interface QueueStore {
   setUpscaleStartedAt: (id: string, t: number | undefined) => void;
   setAdvancedUi: (patch: Partial<AdvancedUiState>) => void;
   getAdvancedUi: () => AdvancedUiState;
-  /** Clone an existing item with the current global defaults applied, append to the queue. Returns the new id. */
-  cloneItemWithDefaults: (sourceId: string) => string | null;
+  /** Clone an existing item with the current global defaults applied, append to the queue. Returns the new id.
+   *  When `advanced` is false (default) the design filters and palette overrides are stripped — those only
+   *  take effect when the conversion is initiated from the Advanced dialog's Convert button. */
+  cloneItemWithDefaults: (sourceId: string, opts?: { advanced?: boolean }) => string | null;
   /** Mark the given source item as selected. Pass null to clear selection. */
   selectSource: (id: string | null) => void;
   getSelectedSourceId: () => string | null;
@@ -449,12 +451,14 @@ export function createQueueStore(): QueueStore {
         isSource: true,
       });
       // Initial conversion child with current globalDefaults (likely 'auto').
+      // Auto-conversion runs without advanced filters / palette overrides —
+      // those only apply when explicitly invoked via the Advanced dialog.
       newItems.push({
         id: genId(),
         file,
         status: 'waiting',
         progress: 0,
-        settings: { ...state.globalDefaults },
+        settings: settingsForClone(false),
         parentId: sourceId,
       });
       if (!firstSourceId) firstSourceId = sourceId;
@@ -613,7 +617,19 @@ export function createQueueStore(): QueueStore {
     notify();
   }
 
-  function cloneItemWithDefaults(sourceId: string): string | null {
+  function settingsForClone(advanced: boolean): PerFileSettings {
+    const base: PerFileSettings = { ...state.globalDefaults };
+    if (!advanced) {
+      // Design filters and palette overrides are advanced-only — strip them so
+      // the simple Convert and the initial auto-conversion don't apply edits
+      // the user only configured to preview.
+      delete base.filters;
+      delete base.paletteOverrides;
+    }
+    return base;
+  }
+
+  function cloneItemWithDefaults(sourceId: string, opts?: { advanced?: boolean }): string | null {
     const src = state.items.find(i => i.id === sourceId);
     if (!src) return null;
     // Always parent the new conversion to the original SOURCE (walking up if a
@@ -625,7 +641,7 @@ export function createQueueStore(): QueueStore {
       file: parent.file,
       status: 'waiting',
       progress: 0,
-      settings: { ...state.globalDefaults },
+      settings: settingsForClone(opts?.advanced === true),
       originalDimensions: parent.originalDimensions,
       parentId,
     };

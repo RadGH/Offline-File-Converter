@@ -1531,7 +1531,12 @@ video.queue-item__thumb {
   background: var(--cream-3); border: 1px solid var(--border);
   border-radius: var(--radius-sm); overflow: hidden;
   user-select: none;
+  /* Make the entire viewport (including the centered handle) draggable. */
+  cursor: ew-resize;
+  touch-action: none;
 }
+/* Disable the drag cursor for the non-slider views where dragging is meaningless. */
+.adv-preview__viewport--scroll { cursor: auto; }
 .adv-preview__layer {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: contain;

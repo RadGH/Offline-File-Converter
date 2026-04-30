@@ -422,3 +422,7 @@ That happens for the thumbnail and compare tool.
 There is also this warning I do not know what it is about:
 he Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element.
 
+## 2026-04-30 13:19
+
+I converted the file using the regular editor. However it applied settings from the advanced editor (posturize + palette override). Can the advanced filters be changed to only override if using the convert button through the advanced dialog? Can the "Palette Overwrite" feature be updated to match Posterize, so if I have 8 colors selected, those 8 colors are the ones it replaces? Can you fixed the compare tool in advance dialog I cannot grab the handle in the middle, but the slider below works? Ideally it should work just like the standard queue area compare tool
+

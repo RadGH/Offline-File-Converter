@@ -544,21 +544,14 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       const s = el('input', 'rd-slider') as HTMLInputElement;
       s.type = 'range'; s.min = '0'; s.max = '32'; s.value = String(f.posterize);
       const out = el('span', 'adv-readout', f.posterize === 0 ? 'off' : String(f.posterize));
-      s.title = '0 = off, 2..32 = quantization levels';
+      s.title = '0 = off, 2..32 = palette colors. The Palette overwrite list ' +
+                'syncs to this size; you can recolor each one individually.';
       s.addEventListener('input', () => { out.textContent = Number(s.value) === 0 ? 'off' : s.value; });
-      s.addEventListener('change', () => store.setGlobalDefaults({ filters: { ...f, posterize: Number(s.value) } }));
-      r.control.append(s, out);
-      filtContainer.appendChild(r.row);
-    }
-    {
-      const r = row('Posterize source');
-      const sel = el('select', 'rd-select') as HTMLSelectElement;
-      [['true', 'Image palette (better)'], ['false', 'Uniform RGB']].forEach(([v, l]) => {
-        const o = document.createElement('option'); o.value = v; o.textContent = l; sel.appendChild(o);
+      s.addEventListener('change', async () => {
+        const n = Number(s.value);
+        await syncPaletteToPosterize(n);
       });
-      sel.value = String(f.posterizeFromImage);
-      sel.addEventListener('change', () => store.setGlobalDefaults({ filters: { ...f, posterizeFromImage: sel.value === 'true' } }));
-      r.control.appendChild(sel);
+      r.control.append(s, out);
       filtContainer.appendChild(r.row);
     }
     {
@@ -586,6 +579,75 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     return null;
   }
 
+  /** Keep `paletteOverrides` length aligned with the posterize slider value.
+   *  Re-extracts colors from the current source when the count grows or when
+   *  forceRefresh is true. Preserves user-edited `to` colors when the
+   *  corresponding `from` color is unchanged. */
+  async function syncPaletteToPosterize(n: number, opts?: { forceRefresh?: boolean }): Promise<void> {
+    const cur = store.getGlobalDefaults();
+    const prior: PaletteOverride[] = cur.paletteOverrides ?? [];
+    const filters = cur.filters ?? { ...DEFAULT_FILTERS };
+
+    if (n < 2) {
+      // Posterize off → drop overrides entirely.
+      store.setGlobalDefaults({
+        filters: { ...filters, posterize: 0 },
+        paletteOverrides: [],
+      });
+      renderPaletteOverrides();
+      renderPreview();
+      return;
+    }
+
+    const previewItem = getPreviewItem();
+    let pal: PaletteOverride['from'][] = prior.map(p => p.from);
+
+    // Re-extract when the count changes or forceRefresh is set.
+    if (opts?.forceRefresh || pal.length !== n) {
+      if (!packRef || !previewItem) {
+        // Without a source we can't extract; pad with grey placeholders.
+        const placeholder: PaletteOverride['from'] = [128, 128, 128];
+        pal = Array.from({ length: n }, (_, i) => prior[i]?.from ?? placeholder);
+      } else {
+        try {
+          const decoded = await packRef.decode.decodeFirstFrame(previewItem.file);
+          const ctx = decoded.canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+          if (!ctx) {
+            pal = Array.from({ length: n }, (_, i) => prior[i]?.from ?? [128, 128, 128]);
+          } else {
+            const id = ctx.getImageData(0, 0, decoded.width, decoded.height);
+            pal = packRef.palette.extractPalette(id, n);
+          }
+        } catch {
+          pal = Array.from({ length: n }, (_, i) => prior[i]?.from ?? [128, 128, 128]);
+        }
+      }
+    }
+
+    const newOverrides: PaletteOverride[] = pal.map(from => {
+      // Preserve a prior `to` color if its `from` is identical (within ±2 channel).
+      const match = prior.find(p =>
+        Math.abs(p.from[0] - from[0]) <= 2 &&
+        Math.abs(p.from[1] - from[1]) <= 2 &&
+        Math.abs(p.from[2] - from[2]) <= 2
+      );
+      return { from, to: match?.to ?? from };
+    });
+
+    store.setGlobalDefaults({
+      filters: { ...filters, posterize: n },
+      paletteOverrides: newOverrides,
+    });
+    renderPaletteOverrides();
+    renderPreview();
+    if (packRef && previewItem) {
+      try {
+        const hash = await packRef.imageHash.hashFile(previewItem.file);
+        packRef.paletteOverrides.writeOverrides(hash, newOverrides);
+      } catch { /* noop */ }
+    }
+  }
+
   function renderPaletteOverrides(): void {
     palBody.innerHTML = '';
     if (!packRef) return;
@@ -599,25 +661,20 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     const overrides: PaletteOverride[] = cur.paletteOverrides ?? [];
 
     // Suggest from extracted palette
-    const extractBtn = el('button', 'rd-btn rd-btn--secondary', 'Extract palette from image');
+    const cur2 = store.getGlobalDefaults();
+    const posterizeN = cur2.filters?.posterize ?? 0;
+
+    const extractBtn = el('button', 'rd-btn rd-btn--secondary',
+      posterizeN >= 2
+        ? `Re-extract ${posterizeN} colors from image`
+        : 'Set Posterize first to enable palette');
     extractBtn.type = 'button';
+    extractBtn.disabled = posterizeN < 2;
+    extractBtn.title = 'The palette size is controlled by the Posterize slider above.';
     extractBtn.addEventListener('click', async () => {
-      try {
-        const decoded = await packRef!.decode.decodeFirstFrame(previewItem.file);
-        const ctx = decoded.canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-        if (!ctx) return;
-        const id = ctx.getImageData(0, 0, decoded.width, decoded.height);
-        const pal = packRef!.palette.extractPalette(id, 8);
-        const newOverrides: PaletteOverride[] = pal.map(c => ({ from: c, to: c }));
-        store.setGlobalDefaults({ paletteOverrides: newOverrides });
-        renderPaletteOverrides();
-        renderPreview();
-        // Persist
-        const hash = await packRef!.imageHash.hashFile(previewItem.file);
-        packRef!.paletteOverrides.writeOverrides(hash, newOverrides);
-      } catch (err) {
-        console.error('Extract palette failed:', err);
-      }
+      const n = store.getGlobalDefaults().filters?.posterize ?? 0;
+      if (n < 2) return;
+      await syncPaletteToPosterize(n, { forceRefresh: true });
     });
     palBody.appendChild(extractBtn);
 
@@ -762,9 +819,34 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       slider = el('input', 'adv-preview__slider') as HTMLInputElement;
       slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = '50';
       slider.style.display = ui.eyedropperActive ? 'none' : '';
-      slider.addEventListener('input', () => {
-        viewport.style.setProperty('--split', `${slider!.value}%`);
+      const setSplit = (pct: number): void => {
+        const v = Math.max(0, Math.min(100, pct));
+        viewport.style.setProperty('--split', `${v}%`);
+        if (slider) slider.value = String(Math.round(v));
+      };
+      slider.addEventListener('input', () => setSplit(Number(slider!.value)));
+      // Drag the handle (or anywhere in the viewport) directly — same pattern
+      // as the queue's compare panel.
+      let dragging = false;
+      const handlePointer = (e: PointerEvent): void => {
+        if (ui.eyedropperActive) return;
+        const rect = viewport.getBoundingClientRect();
+        const pct = ((e.clientX - rect.left) / rect.width) * 100;
+        setSplit(pct);
+      };
+      viewport.addEventListener('pointerdown', (e) => {
+        if (ui.eyedropperActive) return;
+        dragging = true;
+        viewport.setPointerCapture?.(e.pointerId);
+        handlePointer(e);
       });
+      viewport.addEventListener('pointermove', (e) => { if (dragging) handlePointer(e); });
+      const stopDrag = (e: PointerEvent) => {
+        dragging = false;
+        viewport.releasePointerCapture?.(e.pointerId);
+      };
+      viewport.addEventListener('pointerup', stopDrag);
+      viewport.addEventListener('pointercancel', stopDrag);
       wrap.appendChild(slider);
     } else if (view === 'original') {
       // 1:1 preview at native processed dimensions; scrolls if larger than container.
@@ -924,7 +1006,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     const sourceId = item.sourceId;
     convertBtn.disabled = true;
     convertBtn.textContent = 'Converting…';
-    const newId = store.cloneItemWithDefaults(sourceId);
+    const newId = store.cloneItemWithDefaults(sourceId, { advanced: true });
     if (!newId) {
       convertBtn.textContent = 'Error — could not clone';
       return;

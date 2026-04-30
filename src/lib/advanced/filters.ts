@@ -155,6 +155,68 @@ function quantizePalette(
   }
 }
 
+/** One-pass quantizer: for each pixel, find the nearest `from` color in the
+ *  override list and write the corresponding `to` color. Optionally dithered.
+ *  This is the posterize+palette-overwrite step combined. */
+function quantizeToOverrides(
+  img: ImageData,
+  overrides: PaletteOverride[],
+  dither: AdvancedFilters['dither']
+): void {
+  const fromPalette: RGB[] = overrides.map(o => [o.from[0], o.from[1], o.from[2]]);
+  const w = img.width, h = img.height;
+  const d = img.data;
+  const writeMapped = (idx: number, ix: number) => {
+    const to = overrides[ix].to;
+    d[idx] = to[0]; d[idx + 1] = to[1]; d[idx + 2] = to[2];
+  };
+  if (dither === 'floyd-steinberg') {
+    const buf = new Float32Array(d.length);
+    for (let i = 0; i < d.length; i++) buf[i] = d[i];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4;
+        const r = clamp(buf[o]), g = clamp(buf[o + 1]), b = clamp(buf[o + 2]);
+        const idx = nearestIndex(fromPalette, r, g, b);
+        const matched = fromPalette[idx];
+        const er = r - matched[0], eg = g - matched[1], eb = b - matched[2];
+        writeMapped(o, idx);
+        const distribute = (dx: number, dy: number, ff: number) => {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || xx >= w || yy >= h) return;
+          const oo = (yy * w + xx) * 4;
+          buf[oo] += er * ff; buf[oo + 1] += eg * ff; buf[oo + 2] += eb * ff;
+        };
+        distribute(1, 0, 7 / 16);
+        distribute(-1, 1, 3 / 16);
+        distribute(0, 1, 5 / 16);
+        distribute(1, 1, 1 / 16);
+      }
+    }
+  } else if (dither === 'ordered') {
+    const m = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4;
+        const t = (m[y & 3][x & 3] / 16 - 0.5) * 32;
+        const r = clamp(d[o] + t), g = clamp(d[o + 1] + t), b = clamp(d[o + 2] + t);
+        const idx = nearestIndex(fromPalette, r, g, b);
+        writeMapped(o, idx);
+      }
+    }
+  } else {
+    for (let i = 0; i < d.length; i += 4) {
+      const idx = nearestIndex(fromPalette, d[i], d[i + 1], d[i + 2]);
+      writeMapped(i, idx);
+    }
+  }
+}
+
 export interface ApplyFiltersInput {
   filters?: AdvancedFilters;
   paletteOverrides?: PaletteOverride[];
@@ -163,6 +225,14 @@ export interface ApplyFiltersInput {
 /**
  * Apply the full filter pipeline to ImageData in place.
  * No-op when input is empty/undefined.
+ *
+ * Palette overrides + posterize are now a SINGLE coupled step:
+ *   - When `posterize >= 2` AND `paletteOverrides` has entries, every pixel is
+ *     quantized to its nearest `from` color in the override list and replaced
+ *     with the matching `to` color. The override list IS the posterize palette.
+ *   - When `posterize >= 2` but no overrides exist, the legacy behaviour
+ *     applies: extract a palette of `posterize` colors and quantize to it
+ *     (or uniform RGB bins if `posterizeFromImage` is false).
  */
 export function applyFilters(img: ImageData, input: ApplyFiltersInput): void {
   const f = input.filters;
@@ -177,16 +247,21 @@ export function applyFilters(img: ImageData, input: ApplyFiltersInput): void {
     if (f.invert) applyInvert(d);
   }
 
-  if (overrides.length > 0) {
+  const posterizeOn = f != null && f.posterize >= 2;
+  if (posterizeOn && overrides.length >= 2) {
+    // Palette-mapped posterize: quantize to the `from` colors and write the
+    // corresponding `to` colors. This is the one-pass version that subsumes
+    // both "posterize" and "palette overwrite".
+    quantizeToOverrides(img, overrides, f!.dither);
+  } else if (overrides.length > 0) {
+    // Posterize off — overrides are exact-match replacements only.
     applyPaletteOverrides(d, overrides);
-  }
-
-  if (f && f.posterize >= 2) {
-    if (f.posterizeFromImage) {
-      const palette = extractPalette(img, Math.max(2, Math.min(256, f.posterize)));
-      if (palette.length >= 2) quantizePalette(img, palette, f.dither);
+  } else if (posterizeOn) {
+    if (f!.posterizeFromImage) {
+      const palette = extractPalette(img, Math.max(2, Math.min(256, f!.posterize)));
+      if (palette.length >= 2) quantizePalette(img, palette, f!.dither);
     } else {
-      quantizeUniform(d, Math.max(2, Math.min(256, f.posterize)));
+      quantizeUniform(d, Math.max(2, Math.min(256, f!.posterize)));
     }
   }
 }
