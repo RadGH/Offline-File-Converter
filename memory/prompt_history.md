@@ -413,3 +413,12 @@ Approved - go. You make the decisions this run.
 
 Worked GREAT. However the preview for video does not work, the output side is blank
 
+## 2026-04-30 13:08
+
+Loading media from  'blob:https://convert.radgh.com/68c4856c-5327-484e-a5bc-a1ce5f8033b1' violates the following Content Security Policy directive: "default-src 'self'". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
+
+That happens for the thumbnail and compare tool.
+
+There is also this warning I do not know what it is about:
+he Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element.
+
