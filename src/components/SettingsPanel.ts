@@ -9,6 +9,7 @@ const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
   { value: 'gif',  label: 'GIF' },
   { value: 'gif-animated',  label: 'GIF (Animated)' },
   { value: 'webp-animated', label: 'WebP (Animated)' },
+  { value: 'mp4',           label: 'MP4 (H.264)' },
 ];
 
 /** Formats where quality is irrelevant (lossless in our pipeline) */

@@ -12,6 +12,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
   { value: 'gif',  label: 'GIF',  group: 'still' },
   { value: 'gif-animated',  label: 'GIF (Animated)',  group: 'animated' },
   { value: 'webp-animated', label: 'WebP (Animated)', group: 'animated' },
+  { value: 'mp4',           label: 'MP4 (H.264)',     group: 'animated' },
 ];
 
 const LOSSLESS_FORMATS = new Set<OutputFormat>(['png', 'gif', 'gif-animated']);
@@ -204,16 +205,19 @@ export function createSimpleSettings(store: QueueStore, _processor: QueueProcess
     formatSelect.value = defaults.format;
     const lossless = isLossless(defaults.format);
     const isAuto = defaults.format === 'auto';
+    const isMp4 = defaults.format === 'mp4';
 
     // Quality: lossy → show slider+readout. Lossless → hide both, show "Lossless".
     // Automatic → hide the entire Quality row; the resolved format decides at
     // convert time and the slider value would be misleading either way.
+    // MP4 → hide too; MP4 has its own quality slider in Advanced (the global
+    // 1..100 number doesn't map to bitrate the same way).
     qualitySlider.value = String(defaults.quality);
     qualityReadout.textContent = String(defaults.quality);
-    qualitySlider.style.display = lossless || isAuto ? 'none' : '';
-    qualityReadout.style.display = lossless || isAuto ? 'none' : '';
-    losslessNote.style.display = lossless && !isAuto ? '' : 'none';
-    qualityRow.el.style.display = isAuto ? 'none' : '';
+    qualitySlider.style.display = lossless || isAuto || isMp4 ? 'none' : '';
+    qualityReadout.style.display = lossless || isAuto || isMp4 ? 'none' : '';
+    losslessNote.style.display = lossless && !isAuto && !isMp4 ? '' : 'none';
+    qualityRow.el.style.display = isAuto || isMp4 ? 'none' : '';
 
     // Resample only relevant for lossy formats per spec — hide row otherwise.
     resampleRow.el.style.display = lossless ? 'none' : '';

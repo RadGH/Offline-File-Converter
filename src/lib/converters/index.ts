@@ -194,6 +194,11 @@ export async function convert(
       return convertToWebpAnimated({ file, settings, originalDimensions }, onProgress);
     }
 
+    case 'mp4': {
+      const { convertToMp4 } = await import('./mp4');
+      return convertToMp4({ file, settings, originalDimensions }, onProgress);
+    }
+
     case 'auto':
     default: {
       // 'auto' is resolved earlier; reaching here means a typo or future

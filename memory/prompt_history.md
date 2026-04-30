@@ -397,3 +397,15 @@ It's close but now the advanced settings Unload Advanced is floating in the midd
 
 When automatic format is selected, hide the jpg quality slider/lossless text
 
+## 2026-04-30 12:29
+
+Describe the PNG compression algorithm we have set up so I can explain it to another Claude instance
+
+## 2026-04-30 12:36
+
+Is it feasible to add a lightweight MP4 output for animated gif/webp? I'm thinking that could save a lot of space. Trying to optimize a large 8mb gif actually increases in size currently for webp and gif.
+
+## 2026-04-30 12:37
+
+Approved - go. You make the decisions this run.
+

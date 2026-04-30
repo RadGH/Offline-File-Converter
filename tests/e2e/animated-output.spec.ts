@@ -42,7 +42,7 @@ function countGifFrames(bytes: Uint8Array): number {
   return count;
 }
 
-async function uploadAnimAndConvert(page: import('@playwright/test').Page, format: 'gif-animated' | 'webp-animated'): Promise<Uint8Array> {
+async function uploadAnimAndConvert(page: import('@playwright/test').Page, format: 'gif-animated' | 'webp-animated' | 'mp4'): Promise<Uint8Array> {
   await page.goto('/');
   // Dismiss consent banner so it doesn't intercept clicks.
   const acceptBtn = page.locator('.consent-banner__btn--accept, .consent-banner__btn--reject').first();
@@ -61,11 +61,13 @@ async function uploadAnimAndConvert(page: import('@playwright/test').Page, forma
   // Click Convert below settings
   await page.locator('.simple-convert__btn').click();
 
-  // Wait for at least one conversion child to be done. The Done badge was
-  // removed — completion is signalled by the Download button appearing.
+  // Wait for at least TWO conversion children to be done — the initial
+  // auto-format conversion that runs at upload time, plus the explicit
+  // format we just clicked Convert on. The explicit one is the LAST entry,
+  // which is what the test downloads.
   await expect(async () => {
     const downloadBtns = await page.locator('.queue-item--conversion .queue-item__download-btn').count();
-    expect(downloadBtns).toBeGreaterThan(0);
+    expect(downloadBtns).toBeGreaterThanOrEqual(2);
   }).toPass({ timeout: 60_000 });
 
   // Pull the most recent completed conversion's blob via the Download button.
@@ -101,5 +103,25 @@ test.describe('animated output formats', () => {
     // Multi-frame check
     const anmfCount = countAnmfChunks(bytes);
     expect(anmfCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('mp4 produces a valid H.264 MP4 with multiple samples', async ({ page }) => {
+    const bytes = await uploadAnimAndConvert(page, 'mp4');
+    // First box must be ftyp (skip the 4-byte size).
+    expect(String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7])).toBe('ftyp');
+    // Find moov box (must exist — fastStart puts it near the front).
+    const ascii = (i: number) => String.fromCharCode(bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]);
+    let foundMoov = false;
+    let foundAvc1 = false;
+    for (let i = 0; i + 4 <= bytes.length; i++) {
+      if (ascii(i) === 'moov') foundMoov = true;
+      if (ascii(i) === 'avc1') foundAvc1 = true;
+      if (foundMoov && foundAvc1) break;
+    }
+    expect(foundMoov).toBe(true);
+    expect(foundAvc1).toBe(true); // confirms H.264 codec
+    // Animated source is 10 frames; output should be at least a few KB and
+    // smaller than the input (~38 KB).
+    expect(bytes.length).toBeGreaterThan(1_000);
   });
 });

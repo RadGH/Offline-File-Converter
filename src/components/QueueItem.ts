@@ -16,6 +16,7 @@ const FORMAT_FACTOR: Record<OutputFormat, number> = {
   gif: 1.00,
   'gif-animated': 1.50,
   'webp-animated': 0.80,
+  'mp4': 0.10, // H.264 inter-frame compression — typically 5–20× smaller than the source.
 };
 
 /** Predict the output filename for a conversion that hasn't run yet.

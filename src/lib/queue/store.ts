@@ -19,7 +19,7 @@ function genId(): string {
 
 export type QueueStatus = 'waiting' | 'processing' | 'done' | 'error' | 'cancelled';
 
-export type OutputFormat = 'auto' | 'jpeg' | 'png' | 'webp' | 'avif' | 'gif' | 'gif-animated' | 'webp-animated';
+export type OutputFormat = 'auto' | 'jpeg' | 'png' | 'webp' | 'avif' | 'gif' | 'gif-animated' | 'webp-animated' | 'mp4';
 
 // ── Advanced settings ─────────────────────────────────────────────────────────
 // All advanced fields are optional. When undefined the converter falls back
@@ -96,6 +96,15 @@ export interface AvifAdvancedSettings {
   lossless: boolean;
 }
 
+export interface Mp4AdvancedSettings {
+  /** 1..100 quality slider; maps to a bitrate curve based on width × height × fps. */
+  quality: number;
+  /** Background color used to flatten transparent source frames. H.264 has no alpha. */
+  backgroundColor: [number, number, number];
+  /** Override the auto-picked frame rate. 0 = auto (median of source delays). */
+  fpsOverride: number;
+}
+
 export interface PerFileSettings {
   format: OutputFormat;
   quality: number;
@@ -123,6 +132,7 @@ export interface PerFileSettings {
   png?: PngAdvancedSettings;
   jpeg?: JpegAdvancedSettings;
   avif?: AvifAdvancedSettings;
+  mp4?: Mp4AdvancedSettings;
 }
 
 export const DEFAULT_FILTERS: AdvancedFilters = {
@@ -163,6 +173,12 @@ export const DEFAULT_JPEG_ADVANCED: JpegAdvancedSettings = {
 export const DEFAULT_AVIF_ADVANCED: AvifAdvancedSettings = {
   speed: 6,
   lossless: false,
+};
+
+export const DEFAULT_MP4_ADVANCED: Mp4AdvancedSettings = {
+  quality: 65,
+  backgroundColor: [255, 255, 255],
+  fpsOverride: 0,
 };
 
 export interface QueueItemResult {

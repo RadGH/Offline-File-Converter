@@ -12,11 +12,12 @@
 import type {
   QueueStore, PerFileSettings, AdvancedFilters,
   GifAdvancedSettings, WebpAdvancedSettings, PngAdvancedSettings,
-  JpegAdvancedSettings, AvifAdvancedSettings, PaletteOverride,
+  JpegAdvancedSettings, AvifAdvancedSettings, Mp4AdvancedSettings, PaletteOverride,
 } from '@/lib/queue/store';
 import {
   DEFAULT_FILTERS, DEFAULT_GIF_ADVANCED, DEFAULT_WEBP_ADVANCED,
   DEFAULT_PNG_ADVANCED, DEFAULT_JPEG_ADVANCED, DEFAULT_AVIF_ADVANCED,
+  DEFAULT_MP4_ADVANCED,
 } from '@/lib/queue/store';
 import { loadAdvancedPack, isLoaded as isPackLoaded, type AdvancedPack } from '@/lib/advanced/pack-loader';
 
@@ -177,6 +178,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       if (!cur.png) patch.png = { ...DEFAULT_PNG_ADVANCED };
       if (!cur.jpeg) patch.jpeg = { ...DEFAULT_JPEG_ADVANCED };
       if (!cur.avif) patch.avif = { ...DEFAULT_AVIF_ADVANCED };
+      if (!cur.mp4) patch.mp4 = { ...DEFAULT_MP4_ADVANCED };
       if (Object.keys(patch).length > 0) store.setGlobalDefaults(patch);
       store.setAdvancedUi({ pack: { kind: 'ready' } });
       renderAll();
@@ -226,6 +228,7 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
     if (fmt === 'png') renderPngOptions(encContainer, cur.png ?? { ...DEFAULT_PNG_ADVANCED });
     if (fmt === 'jpeg') renderJpegOptions(encContainer, cur.jpeg ?? { ...DEFAULT_JPEG_ADVANCED });
     if (fmt === 'avif') renderAvifOptions(encContainer, cur.avif ?? { ...DEFAULT_AVIF_ADVANCED });
+    if (fmt === 'mp4') renderMp4Options(encContainer, cur.mp4 ?? { ...DEFAULT_MP4_ADVANCED });
 
     // Hide the entire section when there are no controls to render
     // (e.g. format='auto' before resolve, or any format with no specific options).
@@ -400,6 +403,55 @@ export function createAdvancedPanel(store: QueueStore): HTMLElement {
       cb.type = 'checkbox'; cb.className = 'rd-checkbox'; cb.checked = a.lossless;
       cb.addEventListener('change', () => store.setGlobalDefaults({ avif: { ...a, lossless: cb.checked } }));
       r.control.appendChild(cb);
+      parent.appendChild(r.row);
+    }
+  }
+
+  function renderMp4Options(parent: HTMLElement, m: Mp4AdvancedSettings): void {
+    {
+      const r = row('Quality');
+      const s = el('input', 'rd-slider') as HTMLInputElement;
+      s.type = 'range'; s.min = '1'; s.max = '100'; s.value = String(m.quality);
+      const out = el('span', 'adv-readout', String(m.quality));
+      s.title = 'Higher = bigger file. ~50 is a good starting point.';
+      s.addEventListener('input', () => { out.textContent = s.value; });
+      s.addEventListener('change', () => store.setGlobalDefaults({ mp4: { ...m, quality: Number(s.value) } }));
+      r.control.append(s, out);
+      parent.appendChild(r.row);
+    }
+    {
+      const r = row('Frame rate');
+      const inp = el('input', 'adv-num-input') as HTMLInputElement;
+      inp.type = 'number'; inp.min = '0'; inp.max = '60';
+      inp.value = String(m.fpsOverride);
+      inp.placeholder = 'auto';
+      inp.title = '0 or empty = auto-pick from source frame delays. Otherwise 1..60 fps.';
+      inp.addEventListener('change', () => {
+        const raw = inp.value.trim();
+        const v = raw === '' ? 0 : Math.max(0, Math.min(60, Math.round(Number(raw))));
+        inp.value = v === 0 ? '' : String(v);
+        store.setGlobalDefaults({ mp4: { ...m, fpsOverride: v } });
+      });
+      r.control.appendChild(inp);
+      const hint = el('span', 'adv-hint', 'auto if blank');
+      r.control.appendChild(hint);
+      parent.appendChild(r.row);
+    }
+    {
+      const r = row('Background');
+      const ci = el('input', 'adv-color-input') as HTMLInputElement;
+      ci.type = 'color';
+      const h = (n: number) => n.toString(16).padStart(2, '0');
+      ci.value = `#${h(m.backgroundColor[0])}${h(m.backgroundColor[1])}${h(m.backgroundColor[2])}`;
+      ci.title = 'H.264 has no alpha. Transparent source pixels are flattened onto this color.';
+      ci.addEventListener('change', () => {
+        const v = ci.value.trim();
+        const mm = /^#?([0-9a-f]{6})$/i.exec(v);
+        if (!mm) return;
+        const n = parseInt(mm[1], 16);
+        store.setGlobalDefaults({ mp4: { ...m, backgroundColor: [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff] } });
+      });
+      r.control.appendChild(ci);
       parent.appendChild(r.row);
     }
   }

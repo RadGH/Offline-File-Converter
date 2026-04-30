@@ -50,6 +50,7 @@ export function mimeForOutput(format: OutputFormat): string {
     case 'gif':  return 'image/gif';
     case 'gif-animated':  return 'image/gif';
     case 'webp-animated': return 'image/webp';
+    case 'mp4':  return 'video/mp4';
   }
 }
 
@@ -63,5 +64,6 @@ export function extForOutput(format: OutputFormat): string {
     case 'gif':  return 'gif';
     case 'gif-animated':  return 'gif';
     case 'webp-animated': return 'webp';
+    case 'mp4':  return 'mp4';
   }
 }

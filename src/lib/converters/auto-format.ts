@@ -27,9 +27,10 @@ export interface AutoSourceProbe {
 
 export function resolveAutoFormat(file: File, probe: AutoSourceProbe): OutputFormat {
   if (probe.isAnimated) {
-    // Prefer animated WebP — smaller and modern. If source is gif and user
-    // expects gif passthrough, we still produce webp-animated for size; the
-    // user can pick gif-animated explicitly if they want a real .gif.
+    // Animated + no alpha → MP4 (H.264). Real video codec uses inter-frame
+    // compression so 5–20× smaller than animated WebP/GIF for typical content.
+    // Animated + alpha → WebP-animated (preserves transparency; H.264 doesn't).
+    if (!probe.hasAlpha) return 'mp4';
     return 'webp-animated';
   }
 
